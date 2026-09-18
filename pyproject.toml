@@ -1,0 +1,27 @@
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+exclude = ["*/migrations/*"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line length is a formatter concern, not a lint error
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "config"]
+
+[tool.ruff.lint.per-file-ignores]
+# dev.py/prod.py/test.py do `from .base import *` (already # noqa: F403'd)
+# to build on the shared settings — F405 flags every name that trick pulls
+# in, which is the point of the pattern, not a bug.
+"config/settings/dev.py" = ["F405"]
+"config/settings/prod.py" = ["F405"]
+"config/settings/test.py" = ["F405"]
