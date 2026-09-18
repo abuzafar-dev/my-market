@@ -1,12 +1,16 @@
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import api from '@/api/client'
 import Icon from '@/components/Icon.vue'
+import { useAuthStore } from '@/stores/auth'
 import { formatMoney } from '@/utils/format'
 
 const route = useRoute()
+const auth = useAuthStore()
+// Creating/editing products is owner-only (permissions matrix, P1).
+const isOwner = computed(() => auth.user?.role === 'owner')
 const products = ref([])
 const loading = ref(true)
 const search = ref('')
@@ -43,6 +47,7 @@ function onSearch() {
     <div class="mb-5 flex items-center justify-between">
       <h1 class="text-2xl font-bold">Mahsulotlar</h1>
       <RouterLink
+        v-if="isOwner"
         :to="{ name: 'product-new' }"
         class="flex items-center gap-1.5 rounded-lg bg-[var(--color-ink)] px-4 py-2.5 text-sm font-bold text-white transition active:scale-[0.98]"
       >
@@ -92,11 +97,13 @@ function onSearch() {
       v-else
       class="overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)]"
     >
-      <RouterLink
+      <component
+        :is="isOwner ? 'RouterLink' : 'div'"
         v-for="product in products"
         :key="product.id"
-        :to="{ name: 'product-edit', params: { id: product.id } }"
-        class="flex items-center justify-between gap-4 border-b border-[var(--color-line)] p-4 last:border-0 hover:bg-[var(--color-paper)]"
+        :to="isOwner ? { name: 'product-edit', params: { id: product.id } } : undefined"
+        class="flex items-center justify-between gap-4 border-b border-[var(--color-line)] p-4 last:border-0"
+        :class="isOwner ? 'hover:bg-[var(--color-paper)]' : ''"
       >
         <div class="flex min-w-0 items-center gap-3">
           <div class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[var(--color-paper)]">
@@ -131,7 +138,7 @@ function onSearch() {
           </div>
         </div>
         <span class="shrink-0 font-mono text-sm font-semibold">{{ formatMoney(product.price) }}</span>
-      </RouterLink>
+      </component>
       <p v-if="!products.length" class="p-8 text-center text-[var(--color-ink-soft)]">
         Mahsulot topilmadi
       </p>

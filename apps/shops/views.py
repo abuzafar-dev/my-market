@@ -15,6 +15,8 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.common.permissions import IsOwner
+
 from .serializers import (
     LoginSerializer,
     PasswordChangeSerializer,
@@ -129,6 +131,8 @@ class PasswordChangeView(APIView):
 
 class SettingsView(APIView):
     """GET/PATCH /api/settings/ — expiry warning window and currency (TZ v2 8.2)."""
+
+    permission_classes = [IsAuthenticated, IsOwner]
 
     def get(self, request: Request) -> Response:
         return Response(ShopSettingsSerializer(request.user.shop.settings).data)

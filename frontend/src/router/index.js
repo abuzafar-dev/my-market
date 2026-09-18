@@ -19,14 +19,21 @@ const routes = [
     path: '/mahsulotlar/yangi',
     name: 'product-new',
     component: () => import('@/views/ProductFormView.vue'),
+    meta: { role: 'owner' },
   },
   {
     path: '/mahsulotlar/:id',
     name: 'product-edit',
     component: () => import('@/views/ProductFormView.vue'),
     props: true,
+    meta: { role: 'owner' },
   },
-  { path: '/kirim', name: 'batch-new', component: () => import('@/views/BatchFormView.vue') },
+  {
+    path: '/kirim',
+    name: 'batch-new',
+    component: () => import('@/views/BatchFormView.vue'),
+    meta: { role: 'owner' },
+  },
   { path: '/qarz', name: 'customers', component: () => import('@/views/CustomersView.vue') },
   {
     path: '/qarz/:id',
@@ -34,8 +41,18 @@ const routes = [
     component: () => import('@/views/CustomerDetailView.vue'),
     props: true,
   },
-  { path: '/hisobot', name: 'reports', component: () => import('@/views/ReportsView.vue') },
-  { path: '/sozlamalar', name: 'settings', component: () => import('@/views/SettingsView.vue') },
+  {
+    path: '/hisobot',
+    name: 'reports',
+    component: () => import('@/views/ReportsView.vue'),
+    meta: { role: 'owner' },
+  },
+  {
+    path: '/sozlamalar',
+    name: 'settings',
+    component: () => import('@/views/SettingsView.vue'),
+    meta: { role: 'owner' },
+  },
 ]
 
 const router = createRouter({
@@ -49,6 +66,9 @@ router.beforeEach((to) => {
     return { name: 'login', query: { next: to.fullPath } }
   }
   if (to.name === 'login' && auth.isAuthenticated) {
+    return { name: 'home' }
+  }
+  if (to.meta.role && auth.user?.role !== to.meta.role) {
     return { name: 'home' }
   }
   return true

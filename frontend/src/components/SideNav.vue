@@ -1,18 +1,23 @@
 <script setup>
+import { computed } from 'vue'
+
 import Icon from '@/components/Icon.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 
-const tabs = [
+const allTabs = [
   { name: 'home', label: 'Bosh sahifa', icon: 'home' },
   { name: 'sale', label: 'Sotuv', icon: 'cart' },
   { name: 'customers', label: 'Qarz', icon: 'ledger' },
   { name: 'products', label: 'Mahsulot', icon: 'box' },
-  { name: 'reports', label: 'Hisobot', icon: 'chart' },
+  { name: 'reports', label: 'Hisobot', icon: 'chart', role: 'owner' },
 ]
 
 const auth = useAuthStore()
 const router = useRouter()
+// Reports/Settings are owner-only (permissions matrix, P1) — hidden for sellers.
+const tabs = computed(() => allTabs.filter((tab) => !tab.role || auth.user?.role === tab.role))
+const isOwner = computed(() => auth.user?.role === 'owner')
 
 async function logout() {
   await auth.logout()
@@ -44,6 +49,7 @@ async function logout() {
 
     <div class="flex flex-col gap-1 border-t border-[var(--color-line)] px-3 py-3">
       <RouterLink
+        v-if="isOwner"
         :to="{ name: 'settings' }"
         class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-[var(--color-ink-soft)] transition-colors hover:bg-[var(--color-paper)]"
         active-class="bg-[var(--color-accent-soft)]! text-[var(--color-accent)]!"

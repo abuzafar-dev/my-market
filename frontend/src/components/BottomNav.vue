@@ -1,22 +1,29 @@
 <script setup>
+import { computed } from 'vue'
+
 import Icon from '@/components/Icon.vue'
+import { useAuthStore } from '@/stores/auth'
 
 // TZ v2 4.1 shows these 4 tabs below the home screen's own content; a
 // 5th "Bosh" tab is added so the home screen is reachable from anywhere,
 // not only right after login. Hidden on md+ in favor of SideNav.vue.
-const tabs = [
+const allTabs = [
   { name: 'home', label: 'Bosh', icon: 'home' },
   { name: 'sale', label: 'Sotuv', icon: 'cart' },
   { name: 'customers', label: 'Qarz', icon: 'ledger' },
   { name: 'products', label: 'Mahsulot', icon: 'box' },
-  { name: 'reports', label: 'Hisobot', icon: 'chart' },
+  { name: 'reports', label: 'Hisobot', icon: 'chart', role: 'owner' },
 ]
+
+const auth = useAuthStore()
+// Reports is owner-only (permissions matrix, P1) — sellers never see the tab.
+const tabs = computed(() => allTabs.filter((tab) => !tab.role || auth.user?.role === tab.role))
 </script>
 
 <template>
   <nav
-    class="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-[var(--color-line)] bg-[var(--color-surface)] md:hidden"
-    style="padding-bottom: env(safe-area-inset-bottom)"
+    class="fixed inset-x-0 bottom-0 z-20 grid border-t border-[var(--color-line)] bg-[var(--color-surface)] md:hidden"
+    :style="{ 'grid-template-columns': `repeat(${tabs.length}, minmax(0, 1fr))`, 'padding-bottom': 'env(safe-area-inset-bottom)' }"
   >
     <RouterLink
       v-for="tab in tabs"

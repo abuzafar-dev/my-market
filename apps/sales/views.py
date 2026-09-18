@@ -88,10 +88,13 @@ class SaleViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        return Response(SaleReadSerializer(sale).data, status=status.HTTP_201_CREATED)
+        return Response(
+            SaleReadSerializer(sale, context=self.get_serializer_context()).data,
+            status=status.HTTP_201_CREATED,
+        )
 
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
         sale = self.get_object()
         sale = cancel_sale(sale, request.user)
-        return Response(SaleReadSerializer(sale).data)
+        return Response(SaleReadSerializer(sale, context=self.get_serializer_context()).data)

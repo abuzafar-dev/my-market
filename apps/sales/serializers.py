@@ -2,6 +2,8 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
+from apps.shops.models import User
+
 from .models import Sale, SaleItem
 
 
@@ -28,6 +30,17 @@ class SaleItemReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = SaleItem
         fields = ["product_name", "qty", "unit_price", "unit_cost", "line_total"]
+
+    def to_representation(self, instance):
+        # unit_cost is cost-price data — owner-only (permissions matrix, P1).
+        # Checked here (not via context-aware __init__) because this
+        # serializer is nested inside SaleReadSerializer as a declared
+        # field, so self.context isn't bound until render time.
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        if request is not None and getattr(request.user, "role", None) != User.Role.OWNER:
+            data.pop("unit_cost", None)
+        return data
 
 
 class SaleReadSerializer(serializers.ModelSerializer):

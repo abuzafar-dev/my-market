@@ -5,8 +5,11 @@ from django.http import Http404
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.generics import CreateAPIView
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from apps.common.permissions import IsOwner
 
 from .models import Category, Product
 from .serializers import (
@@ -40,6 +43,13 @@ class CategoryViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, viewsets.G
 class ProductViewSet(viewsets.ModelViewSet):
     # No PUT/DELETE: products are archived (is_active=False), never replaced or deleted.
     http_method_names = ["get", "post", "patch", "head", "options"]
+
+    def get_permissions(self):
+        # Sellers may browse products/stock, but only owners create, edit,
+        # or archive them (permissions matrix, P1).
+        if self.action in {"create", "partial_update", "archive"}:
+            return [IsAuthenticated(), IsOwner()]
+        return super().get_permissions()
 
     def get_serializer_class(self):
         if self.action == "list" and self.request.query_params.get("filter") == "expiring":
@@ -112,6 +122,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 class BatchCreateView(CreateAPIView):
     """POST /api/batches/ — kirim (TZ v2 3.2)."""
 
+    permission_classes = [IsAuthenticated, IsOwner]
     serializer_class = BatchCreateSerializer
 
 

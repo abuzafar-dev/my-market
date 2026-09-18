@@ -3,8 +3,10 @@ import { onMounted, ref } from 'vue'
 
 import api from '@/api/client'
 import Icon from '@/components/Icon.vue'
+import { useAuthStore } from '@/stores/auth'
 import { formatMoney } from '@/utils/format'
 
+const auth = useAuthStore()
 const data = ref(null)
 const loading = ref(true)
 
@@ -23,6 +25,7 @@ onMounted(async () => {
         <p class="text-sm text-[var(--color-ink-soft)]">Bugungi holat bir qarashda</p>
       </div>
       <RouterLink
+        v-if="auth.user?.role === 'owner'"
         :to="{ name: 'settings' }"
         class="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-line)] text-[var(--color-ink-soft)] md:hidden"
       >
@@ -35,7 +38,9 @@ onMounted(async () => {
     </div>
 
     <div v-else-if="data" class="space-y-6">
-      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <!-- data.today (revenue/profit breakdown) is owner-only — the API
+           omits it entirely for a seller (permissions matrix, P1). -->
+      <div v-if="data.today" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div class="rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5">
           <p class="text-sm text-[var(--color-ink-soft)]">Bugungi savdo</p>
           <p class="mt-1 font-mono text-2xl font-bold">{{ formatMoney(data.today.revenue) }}</p>
@@ -61,8 +66,13 @@ onMounted(async () => {
           <p class="text-xs text-[var(--color-ink-soft)]">so'm</p>
         </div>
       </div>
+      <div v-else class="rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5">
+        <p class="text-sm text-[var(--color-ink-soft)]">Jami qarz</p>
+        <p class="mt-1 font-mono text-2xl font-bold">{{ formatMoney(data.total_debt) }}</p>
+        <p class="text-xs text-[var(--color-ink-soft)]">so'm</p>
+      </div>
 
-      <div class="rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5">
+      <div v-if="data.today" class="rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5">
         <p class="mb-3 text-sm font-semibold text-[var(--color-ink-soft)]">To'lov turlari</p>
         <dl class="grid grid-cols-3 gap-4 text-sm">
           <div>
