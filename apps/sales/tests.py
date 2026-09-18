@@ -1,5 +1,6 @@
 import uuid
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.test import TestCase
 
@@ -124,6 +125,49 @@ class CreateSaleFifoTests(SalesTestCase):
         self.assertEqual(first.pk, second.pk)
         self.assertEqual(Sale.objects.count(), 1)
 
+    def test_recovers_from_true_race_on_client_id(self):
+        """test_repeated_client_id_is_idempotent above only exercises the
+        early-return fast path — two *sequential* calls always see the
+        first one already committed. This simulates the actual race the
+        fast path can't catch: both requests pass the pre-check before
+        either commits. SQLite's in-memory test DB doesn't support real
+        concurrent connections, so the second request's pre-check is
+        patched to miss the winner (as it could under real overlapping
+        transactions), forcing execution into the try block and the
+        IntegrityError recovery path against the real unique constraint."""
+        batch = self.make_batch(Decimal("5"), 1000, 1500)
+        client_id = uuid.uuid4()
+        cart = [CartLine(product=self.product, qty=Decimal("1"))]
+
+        winner = create_sale(
+            shop=self.shop,
+            user=self.user,
+            client_id=client_id,
+            payment_type=Sale.PaymentType.CASH,
+            customer=None,
+            cart=cart,
+        )
+        batch.refresh_from_db()
+        self.assertEqual(batch.qty_remaining, Decimal("4"))
+
+        with patch("apps.sales.services.Sale.objects.filter") as mock_filter:
+            mock_filter.return_value.first.return_value = None
+            loser = create_sale(
+                shop=self.shop,
+                user=self.user,
+                client_id=client_id,
+                payment_type=Sale.PaymentType.CASH,
+                customer=None,
+                cart=cart,
+            )
+
+        self.assertEqual(loser.pk, winner.pk)
+        self.assertEqual(Sale.objects.filter(shop=self.shop, client_id=client_id).count(), 1)
+        batch.refresh_from_db()
+        # The loser's own FIFO consumption must have been rolled back with
+        # its failed INSERT, not left applied on top of the winner's.
+        self.assertEqual(batch.qty_remaining, Decimal("4"))
+
     def test_debt_sale_creates_debt_entry_and_updates_balance(self):
         self.make_batch(Decimal("5"), 1000, 1500)
         customer = Customer.objects.create(shop=self.shop, full_name="Mijoz")
@@ -193,4 +237,31 @@ class CancelSaleTests(SalesTestCase):
         cancel_sale(sale, self.user)
 
         batch = Batch.objects.get(product=self.product)
+        self.assertEqual(batch.qty_remaining, Decimal("5"))
+
+    def test_cancelling_twice_with_stale_instance_is_a_noop(self):
+        """The test above reuses the same Python object for both calls, so
+        its second .status check was already CANCELLED in memory — it
+        never touched the bug. Here two independent instances are fetched
+        (as two separate view requests would via self.get_object()) before
+        either cancellation runs, so the second instance's in-memory
+        status is stale (COMPLETED) by the time it's passed in. Without
+        the select_for_update() re-fetch this double-credits stock."""
+        batch = self.make_batch(Decimal("5"), 1000, 1500)
+        sale = create_sale(
+            shop=self.shop,
+            user=self.user,
+            client_id=uuid.uuid4(),
+            payment_type=Sale.PaymentType.CASH,
+            customer=None,
+            cart=[CartLine(product=self.product, qty=Decimal("3"))],
+        )
+
+        first_request_instance = Sale.objects.get(pk=sale.pk)
+        second_request_instance = Sale.objects.get(pk=sale.pk)
+
+        cancel_sale(first_request_instance, self.user)
+        cancel_sale(second_request_instance, self.user)
+
+        batch.refresh_from_db()
         self.assertEqual(batch.qty_remaining, Decimal("5"))

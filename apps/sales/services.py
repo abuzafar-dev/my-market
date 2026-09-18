@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from decimal import Decimal
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import F
 from django.utils import timezone
 
@@ -71,48 +71,65 @@ def create_sale(
     cart: list[CartLine],
 ) -> Sale:
     """Idempotent on client_id — a repeated request returns the original sale
-    instead of double-selling (TZ v2 6.5)."""
+    instead of double-selling (TZ v2 6.5).
+
+    The read below is only a fast path, not the guard: two requests with the
+    same client_id can both pass it before either has committed. The real
+    guard is unique_together=("shop", "client_id") on Sale — whichever
+    request loses that race hits IntegrityError inside the inner atomic()
+    (a savepoint), which unwinds its FIFO stock consumption too, and falls
+    back to returning the row the winner created."""
     existing = Sale.objects.filter(shop=shop, client_id=client_id).first()
     if existing:
         return existing
 
-    items: list[SaleItem] = []
-    for line in cart:
-        items += _consume_fifo(line.product, line.qty)
+    try:
+        with transaction.atomic():
+            items: list[SaleItem] = []
+            for line in cart:
+                items += _consume_fifo(line.product, line.qty)
 
-    total = sum(item.line_total for item in items)
-    cost_total = sum(int(item.unit_cost * item.qty) for item in items)
+            total = sum(item.line_total for item in items)
+            cost_total = sum(int(item.unit_cost * item.qty) for item in items)
 
-    sale = Sale.objects.create(
-        shop=shop,
-        client_id=client_id,
-        customer=customer,
-        total=total,
-        cost_total=cost_total,
-        payment_type=payment_type,
-        sold_by=user,
-        sold_at=timezone.now(),
-    )
-    for item in items:
-        item.sale = sale
-    SaleItem.objects.bulk_create(items)
+            sale = Sale.objects.create(
+                shop=shop,
+                client_id=client_id,
+                customer=customer,
+                total=total,
+                cost_total=cost_total,
+                payment_type=payment_type,
+                sold_by=user,
+                sold_at=timezone.now(),
+            )
+            for item in items:
+                item.sale = sale
+            SaleItem.objects.bulk_create(items)
 
-    if payment_type == Sale.PaymentType.DEBT:
-        DebtEntry.objects.create(
-            shop=shop,
-            customer=customer,
-            sale=sale,
-            amount=total,
-            entry_type=DebtEntry.EntryType.DEBT,
-            created_by=user,
-        )
-        Customer.objects.filter(pk=customer.pk).update(debt_balance=F("debt_balance") + total)
+            if payment_type == Sale.PaymentType.DEBT:
+                DebtEntry.objects.create(
+                    shop=shop,
+                    customer=customer,
+                    sale=sale,
+                    amount=total,
+                    entry_type=DebtEntry.EntryType.DEBT,
+                    created_by=user,
+                )
+                Customer.objects.filter(pk=customer.pk).update(
+                    debt_balance=F("debt_balance") + total
+                )
+    except IntegrityError:
+        return Sale.objects.get(shop=shop, client_id=client_id)
 
     return sale
 
 
 @transaction.atomic
 def cancel_sale(sale: Sale, user: User) -> Sale:
+    # Re-fetch under a row lock instead of trusting the instance the view
+    # passed in — two concurrent cancel calls otherwise both read
+    # status=COMPLETED before either commits and both credit stock back.
+    sale = Sale.objects.select_for_update().get(pk=sale.pk)
     if sale.status == Sale.Status.CANCELLED:
         return sale
 
