@@ -1,5 +1,6 @@
 """Role-based access control tests (P1): owner-only endpoints must 403 a
 seller, and cost-price data must not leak into a seller's view of a sale."""
+
 from decimal import Decimal
 
 from rest_framework.test import APITestCase

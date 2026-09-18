@@ -5,6 +5,7 @@ XSS can't exfiltrate it); the access token is returned in the response
 body and is expected to be kept in memory by the frontend. See TZ v2
 section 9.4 for the rationale.
 """
+
 from django.conf import settings
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated

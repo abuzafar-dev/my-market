@@ -4,6 +4,7 @@ The backend is a JSON-only API (see TZ v2 section 8.1) — the frontend
 is a separate Vue SPA that is not served from here. The Django admin
 at /admin/ is the one exception and keeps rendering its own HTML.
 """
+
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin

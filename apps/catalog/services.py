@@ -1,4 +1,5 @@
 """Business logic for products, stock, and batches (TZ v2 sections 3.6, 3.7, 7.1, 7.6, 7.7)."""
+
 from datetime import date, timedelta
 from decimal import Decimal
 

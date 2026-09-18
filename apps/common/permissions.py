@@ -13,4 +13,6 @@ class IsOwner(BasePermission):
     message = "Bu amal faqat do'kon egasi uchun."
 
     def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated and request.user.role == User.Role.OWNER)
+        return bool(
+            request.user and request.user.is_authenticated and request.user.role == User.Role.OWNER
+        )

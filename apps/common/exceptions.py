@@ -11,6 +11,7 @@ as the top-level body and a plain {"detail": ...} for everything else
 (auth, permission, throttling, 404) — this re-shapes both into the one
 envelope instead of leaking DRF's raw response format to every client.
 """
+
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from rest_framework import exceptions

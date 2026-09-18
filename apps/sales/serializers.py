@@ -45,9 +45,7 @@ class SaleItemReadSerializer(serializers.ModelSerializer):
 
 class SaleReadSerializer(serializers.ModelSerializer):
     items = SaleItemReadSerializer(many=True, read_only=True)
-    customer_name = serializers.CharField(
-        source="customer.full_name", read_only=True, default=None
-    )
+    customer_name = serializers.CharField(source="customer.full_name", read_only=True, default=None)
 
     class Meta:
         model = Sale

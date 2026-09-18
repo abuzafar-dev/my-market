@@ -1,4 +1,5 @@
 """Product, batch, and purchase-list endpoints (TZ v2 8.2)."""
+
 from collections import defaultdict
 
 from django.http import Http404

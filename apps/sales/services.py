@@ -1,4 +1,5 @@
 """FIFO sale processing (TZ v2 3.3, 7.2–7.4)."""
+
 from dataclasses import dataclass
 from decimal import Decimal
 

@@ -3,6 +3,7 @@
 There is no public sign-up flow — every shop is created by whoever
 operates the platform, through this command.
 """
+
 import secrets
 import string
 from argparse import ArgumentParser

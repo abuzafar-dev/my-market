@@ -181,7 +181,5 @@ SPECTACULAR_SETTINGS = {
 # --------------------------------------------------------------------------
 # CORS — only the separately hosted Vue SPA is allowed to call this API
 # --------------------------------------------------------------------------
-CORS_ALLOWED_ORIGINS = config(
-    "CORS_ALLOWED_ORIGINS", cast=Csv(), default="http://localhost:5173"
-)
+CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", cast=Csv(), default="http://localhost:5173")
 CORS_ALLOW_CREDENTIALS = True

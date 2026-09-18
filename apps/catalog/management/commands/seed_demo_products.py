@@ -4,6 +4,7 @@ Meant for trying out the app with a believable catalog instead of one or
 two hand-entered items — quantities, prices, and expiry dates are randomized
 within plausible ranges, not pulled from real supplier data.
 """
+
 import random
 from datetime import timedelta
 from decimal import Decimal
@@ -22,19 +23,43 @@ _CATEGORIES: list[tuple[str, str, list[str]]] = [
         "Oziq-ovqat",
         Product.Unit.PIECE,
         [
-            "Guruch", "Un", "Shakar", "Tuz", "O'simlik yog'i", "Sariyog'",
-            "Makaron", "Vermishel", "Yorma (grechka)", "Tuzlangan bodring",
-            "Konserva pomidor", "Konserva no'xat", "Sirka", "Ziravorlar to'plami",
-            "Qand", "Nuxat", "Loviya", "Un yormasi",
+            "Guruch",
+            "Un",
+            "Shakar",
+            "Tuz",
+            "O'simlik yog'i",
+            "Sariyog'",
+            "Makaron",
+            "Vermishel",
+            "Yorma (grechka)",
+            "Tuzlangan bodring",
+            "Konserva pomidor",
+            "Konserva no'xat",
+            "Sirka",
+            "Ziravorlar to'plami",
+            "Qand",
+            "Nuxat",
+            "Loviya",
+            "Un yormasi",
         ],
     ),
     (
         "Ichimliklar",
         Product.Unit.PIECE,
         [
-            "Suv 0.5L", "Suv 1.5L", "Gazli ichimlik Cola", "Gazli ichimlik Fanta",
-            "Sok olma", "Sok apelsin", "Choy qora", "Choy ko'k", "Kofe",
-            "Energetik ichimlik", "Kvas", "Kompot", "Limonad",
+            "Suv 0.5L",
+            "Suv 1.5L",
+            "Gazli ichimlik Cola",
+            "Gazli ichimlik Fanta",
+            "Sok olma",
+            "Sok apelsin",
+            "Choy qora",
+            "Choy ko'k",
+            "Kofe",
+            "Energetik ichimlik",
+            "Kvas",
+            "Kompot",
+            "Limonad",
         ],
     ),
     (
@@ -56,16 +81,34 @@ _CATEGORIES: list[tuple[str, str, list[str]]] = [
         "Meva-sabzavot",
         Product.Unit.KG,
         [
-            "Olma", "Banan", "Apelsin", "Uzum", "Pomidor", "Bodring", "Kartoshka",
-            "Piyoz", "Sarimsoq", "Sabzi", "Qulupnay", "Tarvuz", "Qovun", "Limon",
+            "Olma",
+            "Banan",
+            "Apelsin",
+            "Uzum",
+            "Pomidor",
+            "Bodring",
+            "Kartoshka",
+            "Piyoz",
+            "Sarimsoq",
+            "Sabzi",
+            "Qulupnay",
+            "Tarvuz",
+            "Qovun",
+            "Limon",
         ],
     ),
     (
         "Maishiy kimyo",
         Product.Unit.PIECE,
         [
-            "Kir yuvish kukuni", "Idish yuvish suyuqligi", "Sovun", "Tish pastasi",
-            "Shampun", "Dush geli", "Tozalash vositasi", "Xushbo'y hid purkagich",
+            "Kir yuvish kukuni",
+            "Idish yuvish suyuqligi",
+            "Sovun",
+            "Tish pastasi",
+            "Shampun",
+            "Dush geli",
+            "Tozalash vositasi",
+            "Xushbo'y hid purkagich",
         ],
     ),
     (
@@ -86,8 +129,16 @@ _CATEGORIES: list[tuple[str, str, list[str]]] = [
 ]
 
 _BRANDS = [
-    "Lazzat", "Oltin don", "Mahalliy", "Import", "Standart",
-    "Premium", "Chempion", "Yulduz", "Baraka", "Nur",
+    "Lazzat",
+    "Oltin don",
+    "Mahalliy",
+    "Import",
+    "Standart",
+    "Premium",
+    "Chempion",
+    "Yulduz",
+    "Baraka",
+    "Nur",
 ]
 
 _PRICE_RANGES = {
@@ -96,7 +147,12 @@ _PRICE_RANGES = {
     Product.Unit.LITER: (5_000, 25_000),
 }
 
-_PERISHABLE_CATEGORIES = {"Meva-sabzavot", "Sut mahsulotlari", "Go'sht mahsulotlari", "Non mahsulotlari"}
+_PERISHABLE_CATEGORIES = {
+    "Meva-sabzavot",
+    "Sut mahsulotlari",
+    "Go'sht mahsulotlari",
+    "Non mahsulotlari",
+}
 
 
 class Command(BaseCommand):

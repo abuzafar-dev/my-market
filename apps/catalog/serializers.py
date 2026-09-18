@@ -98,7 +98,9 @@ class ExpiringBatchSerializer(serializers.ModelSerializer):
 class ProductWithExpirySerializer(ProductSerializer):
     """Adds the specific expiring batches, for ?filter=expiring (TZ v2 3.6)."""
 
-    expiring_batches = ExpiringBatchSerializer(many=True, read_only=True, source="_expiring_batches")
+    expiring_batches = ExpiringBatchSerializer(
+        many=True, read_only=True, source="_expiring_batches"
+    )
 
     class Meta(ProductSerializer.Meta):
         fields = ProductSerializer.Meta.fields + ["expiring_batches"]

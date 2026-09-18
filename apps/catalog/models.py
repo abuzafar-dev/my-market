@@ -45,21 +45,15 @@ class Product(BaseModel):
         verbose_name="Kategoriya",
     )
     name = models.CharField(max_length=255, verbose_name="Nomi")
-    image = models.ImageField(
-        upload_to="products/", null=True, blank=True, verbose_name="Rasm"
-    )
+    image = models.ImageField(upload_to="products/", null=True, blank=True, verbose_name="Rasm")
     barcode = models.CharField(
         max_length=64, null=True, blank=True, db_index=True, verbose_name="Shtrix-kod"
     )
     unit = models.CharField(
         max_length=10, choices=Unit.choices, default=Unit.PIECE, verbose_name="O'lchov birligi"
     )
-    markup_pct = models.DecimalField(
-        max_digits=5, decimal_places=2, verbose_name="Ustama foizi"
-    )
-    min_stock = models.DecimalField(
-        max_digits=12, decimal_places=3, verbose_name="Minimal qoldiq"
-    )
+    markup_pct = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Ustama foizi")
+    min_stock = models.DecimalField(max_digits=12, decimal_places=3, verbose_name="Minimal qoldiq")
     is_active = models.BooleanField(default=True, verbose_name="Faol")
 
     class Meta:
@@ -89,9 +83,7 @@ class Batch(BaseModel):
     )
     cost_price = models.PositiveBigIntegerField(verbose_name="Tannarx")
     sale_price = models.PositiveBigIntegerField(verbose_name="Sotuv narxi")
-    produced_at = models.DateField(
-        null=True, blank=True, verbose_name="Ishlab chiqarilgan sana"
-    )
+    produced_at = models.DateField(null=True, blank=True, verbose_name="Ishlab chiqarilgan sana")
     expires_at = models.DateField(null=True, blank=True, verbose_name="Yaroqlilik muddati")
     received_at = models.DateTimeField(default=timezone.now, verbose_name="Qabul qilingan sana")
     created_by = models.ForeignKey(

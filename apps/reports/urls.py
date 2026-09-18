@@ -1,4 +1,5 @@
 """Dashboard/report routes, mounted at /api/ (see config/urls.py)."""
+
 from django.urls import path
 
 from . import views

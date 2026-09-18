@@ -1,4 +1,5 @@
 """Authentication API routes, mounted at /api/auth/ (see config/urls.py)."""
+
 from django.urls import path
 
 from . import views

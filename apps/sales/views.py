@@ -1,4 +1,5 @@
 """Sale endpoints — FIFO checkout, listing, and cancellation (TZ v2 8.2–8.3)."""
+
 from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -42,7 +43,10 @@ class SaleViewSet(viewsets.ModelViewSet):
         missing = set(product_ids) - set(products)
         if missing:
             return Response(
-                {"data": None, "error": {"code": "product_not_found", "message": "Mahsulot topilmadi."}},
+                {
+                    "data": None,
+                    "error": {"code": "product_not_found", "message": "Mahsulot topilmadi."},
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

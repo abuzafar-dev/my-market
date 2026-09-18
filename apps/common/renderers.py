@@ -4,6 +4,7 @@ Error responses already come out of apps.common.exceptions.exception_handler
 in that exact shape, so only status < 400 gets wrapped here — otherwise an
 error would end up double-nested as {"data": {"data": null, "error": {...}}}.
 """
+
 from rest_framework.renderers import JSONRenderer
 
 

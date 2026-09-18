@@ -1,4 +1,5 @@
 """Dashboard and reporting aggregates (TZ v2 3.8, 7.5)."""
+
 from datetime import date, timedelta
 
 from django.db.models import F, Q, Sum

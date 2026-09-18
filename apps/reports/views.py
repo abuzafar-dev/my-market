@@ -1,4 +1,5 @@
 """Dashboard, statistics, and CSV export (TZ v2 8.2, 9.6)."""
+
 import csv
 
 from django.http import HttpResponse
