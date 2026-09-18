@@ -34,7 +34,11 @@ onMounted(async () => {
     </div>
 
     <div v-if="loading" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <div v-for="i in 4" :key="i" class="h-28 animate-pulse rounded-xl bg-[var(--color-line)]/40" />
+      <div
+        v-for="i in 4"
+        :key="i"
+        class="h-28 animate-pulse rounded-xl bg-[var(--color-line)]/40"
+      />
     </div>
 
     <div v-else-if="data" class="space-y-6">
@@ -66,13 +70,19 @@ onMounted(async () => {
           <p class="text-xs text-[var(--color-ink-soft)]">so'm</p>
         </div>
       </div>
-      <div v-else class="rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5">
+      <div
+        v-else
+        class="rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5"
+      >
         <p class="text-sm text-[var(--color-ink-soft)]">Jami qarz</p>
         <p class="mt-1 font-mono text-2xl font-bold">{{ formatMoney(data.total_debt) }}</p>
         <p class="text-xs text-[var(--color-ink-soft)]">so'm</p>
       </div>
 
-      <div v-if="data.today" class="rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5">
+      <div
+        v-if="data.today"
+        class="rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5"
+      >
         <p class="mb-3 text-sm font-semibold text-[var(--color-ink-soft)]">To'lov turlari</p>
         <dl class="grid grid-cols-3 gap-4 text-sm">
           <div>

@@ -52,7 +52,11 @@ async function addPayment() {
           <p class="text-sm text-[var(--color-ink-soft)]">{{ customer.phone }}</p>
           <p
             class="mt-2 font-mono text-2xl font-bold"
-            :class="customer.debt_balance > 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-accent)]'"
+            :class="
+              customer.debt_balance > 0
+                ? 'text-[var(--color-danger)]'
+                : 'text-[var(--color-accent)]'
+            "
           >
             {{ formatMoney(customer.debt_balance) }} so'm
           </p>
@@ -96,7 +100,9 @@ async function addPayment() {
           :key="entry.id"
           class="flex justify-between border-b border-[var(--color-line)] p-4 text-sm last:border-0"
         >
-          <span class="text-[var(--color-ink-soft)]">{{ formatDate(entry.created_at) }} {{ entry.note }}</span>
+          <span class="text-[var(--color-ink-soft)]"
+            >{{ formatDate(entry.created_at) }} {{ entry.note }}</span
+          >
           <span
             class="font-mono font-bold"
             :class="entry.amount > 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-accent)]'"

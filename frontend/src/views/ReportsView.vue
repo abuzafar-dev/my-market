@@ -1,12 +1,5 @@
 <script setup>
-import {
-  BarElement,
-  CategoryScale,
-  Chart as ChartJS,
-  LinearScale,
-  Title,
-  Tooltip,
-} from 'chart.js'
+import { BarElement, CategoryScale, Chart as ChartJS, LinearScale, Title, Tooltip } from 'chart.js'
 import { computed, onMounted, ref, watch } from 'vue'
 import { Bar } from 'vue-chartjs'
 
@@ -103,7 +96,9 @@ async function exportCsv() {
         </div>
         <div class="rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5">
           <p class="text-sm text-[var(--color-ink-soft)]">Kassada</p>
-          <p class="mt-1 font-mono text-xl font-bold">{{ formatMoney(report.stats.cash_in_register) }}</p>
+          <p class="mt-1 font-mono text-xl font-bold">
+            {{ formatMoney(report.stats.cash_in_register) }}
+          </p>
         </div>
       </div>
 
@@ -113,7 +108,9 @@ async function exportCsv() {
         <p v-else class="text-sm text-[var(--color-ink-soft)]">Ma'lumot yo'q</p>
       </div>
 
-      <div class="flex items-center justify-between rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5">
+      <div
+        class="flex items-center justify-between rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5"
+      >
         <div>
           <p class="text-sm text-[var(--color-ink-soft)]">Yo'qotishlar (hisobdan chiqarilgan)</p>
           <p class="font-mono text-lg font-bold text-[var(--color-danger)]">

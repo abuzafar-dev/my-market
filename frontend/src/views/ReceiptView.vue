@@ -34,7 +34,10 @@ async function cancelSale() {
       Orqaga
     </button>
 
-    <div v-if="sale" class="rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5">
+    <div
+      v-if="sale"
+      class="rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5"
+    >
       <p class="text-sm text-[var(--color-ink-soft)]">{{ formatDateTime(sale.sold_at) }}</p>
       <p
         v-if="sale.status === 'cancelled'"
@@ -44,7 +47,11 @@ async function cancelSale() {
       </p>
 
       <div class="my-3 divide-y divide-[var(--color-line)]">
-        <div v-for="(item, index) in sale.items" :key="index" class="flex justify-between py-2 text-sm">
+        <div
+          v-for="(item, index) in sale.items"
+          :key="index"
+          class="flex justify-between py-2 text-sm"
+        >
           <span>{{ item.product_name }} × {{ item.qty }}</span>
           <span class="font-mono">{{ formatMoney(item.line_total) }}</span>
         </div>

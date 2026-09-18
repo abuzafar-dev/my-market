@@ -90,7 +90,11 @@ function onSearch() {
     </div>
 
     <div v-if="loading" class="space-y-2">
-      <div v-for="i in 4" :key="i" class="h-16 animate-pulse rounded-xl bg-[var(--color-line)]/40" />
+      <div
+        v-for="i in 4"
+        :key="i"
+        class="h-16 animate-pulse rounded-xl bg-[var(--color-line)]/40"
+      />
     </div>
 
     <div
@@ -106,38 +110,49 @@ function onSearch() {
         :class="isOwner ? 'hover:bg-[var(--color-paper)]' : ''"
       >
         <div class="flex min-w-0 items-center gap-3">
-          <div class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[var(--color-paper)]">
-            <img v-if="product.image" :src="product.image" alt="" class="h-full w-full object-cover" />
+          <div
+            class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[var(--color-paper)]"
+          >
+            <img
+              v-if="product.image"
+              :src="product.image"
+              alt=""
+              class="h-full w-full object-cover"
+            />
             <Icon v-else name="box" :size="18" class="text-[var(--color-ink-soft)]" />
           </div>
           <div class="min-w-0">
-          <p class="flex items-center gap-2">
-            <span class="truncate font-semibold">{{ product.name }}</span>
-            <span
-              v-if="product.category_name"
-              class="shrink-0 rounded-full bg-[var(--color-accent-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-accent)]"
+            <p class="flex items-center gap-2">
+              <span class="truncate font-semibold">{{ product.name }}</span>
+              <span
+                v-if="product.category_name"
+                class="shrink-0 rounded-full bg-[var(--color-accent-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-accent)]"
+              >
+                {{ product.category_name }}
+              </span>
+            </p>
+            <p
+              class="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-[var(--color-ink-soft)]"
             >
-              {{ product.category_name }}
-            </span>
-          </p>
-          <p class="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-[var(--color-ink-soft)]">
-            <span>Qoldiq: {{ product.stock }} {{ product.unit }}</span>
-            <span
-              v-if="product.expiring_batches?.length"
-              class="flex items-center gap-1 font-semibold"
-              :class="
-                product.expiring_batches[0].status === 'expired'
-                  ? 'text-[var(--color-danger)]'
-                  : 'text-[var(--color-warn)]'
-              "
-            >
-              <Icon name="warning" :size="13" />
-              {{ product.expiring_batches[0].expires_at }}
-            </span>
-          </p>
+              <span>Qoldiq: {{ product.stock }} {{ product.unit }}</span>
+              <span
+                v-if="product.expiring_batches?.length"
+                class="flex items-center gap-1 font-semibold"
+                :class="
+                  product.expiring_batches[0].status === 'expired'
+                    ? 'text-[var(--color-danger)]'
+                    : 'text-[var(--color-warn)]'
+                "
+              >
+                <Icon name="warning" :size="13" />
+                {{ product.expiring_batches[0].expires_at }}
+              </span>
+            </p>
           </div>
         </div>
-        <span class="shrink-0 font-mono text-sm font-semibold">{{ formatMoney(product.price) }}</span>
+        <span class="shrink-0 font-mono text-sm font-semibold">{{
+          formatMoney(product.price)
+        }}</span>
       </component>
       <p v-if="!products.length" class="p-8 text-center text-[var(--color-ink-soft)]">
         Mahsulot topilmadi

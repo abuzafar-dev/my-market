@@ -97,7 +97,9 @@ async function save() {
       </p>
 
       <div>
-        <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]">Mahsulot</label>
+        <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]"
+          >Mahsulot</label
+        >
         <button
           type="button"
           class="mb-2 flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--color-ink)] py-2.5 text-sm font-bold text-white transition active:scale-[0.98]"
@@ -135,7 +137,9 @@ async function save() {
           />
         </div>
         <div>
-          <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]">Kirim narxi</label>
+          <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]"
+            >Kirim narxi</label
+          >
           <input
             v-model.number="form.cost_price"
             type="number"

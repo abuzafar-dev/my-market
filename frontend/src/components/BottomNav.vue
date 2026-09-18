@@ -23,7 +23,10 @@ const tabs = computed(() => allTabs.filter((tab) => !tab.role || auth.user?.role
 <template>
   <nav
     class="fixed inset-x-0 bottom-0 z-20 grid border-t border-[var(--color-line)] bg-[var(--color-surface)] md:hidden"
-    :style="{ 'grid-template-columns': `repeat(${tabs.length}, minmax(0, 1fr))`, 'padding-bottom': 'env(safe-area-inset-bottom)' }"
+    :style="{
+      'grid-template-columns': `repeat(${tabs.length}, minmax(0, 1fr))`,
+      'padding-bottom': 'env(safe-area-inset-bottom)',
+    }"
   >
     <RouterLink
       v-for="tab in tabs"

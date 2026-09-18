@@ -60,7 +60,9 @@ async function logout() {
     </button>
     <h1 class="mb-4 text-xl font-bold">Sozlamalar</h1>
 
-    <div class="mb-4 space-y-3 rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5">
+    <div
+      class="mb-4 space-y-3 rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5"
+    >
       <div>
         <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]">
           Ogohlantirish chegarasi (kun)
@@ -71,7 +73,9 @@ async function logout() {
           class="w-full rounded-lg border border-[var(--color-line)] px-3 py-2.5"
         />
       </div>
-      <p v-if="savedMessage" class="text-sm font-semibold text-[var(--color-accent)]">{{ savedMessage }}</p>
+      <p v-if="savedMessage" class="text-sm font-semibold text-[var(--color-accent)]">
+        {{ savedMessage }}
+      </p>
       <button
         type="button"
         class="w-full rounded-lg bg-[var(--color-ink)] py-3 font-bold text-white transition active:scale-[0.98]"

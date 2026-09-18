@@ -78,7 +78,9 @@ async function onBarcodeDetected(code) {
 
 function cartQtyChange(item, delta) {
   const wasCapped = cart.setQty(item.product.id, item.qty + delta)
-  stockNotice.value = wasCapped ? `Omborda faqat ${item.product.stock} ${item.product.unit} bor.` : ''
+  stockNotice.value = wasCapped
+    ? `Omborda faqat ${item.product.stock} ${item.product.unit} bor.`
+    : ''
 }
 
 function selectPaymentType(type) {
@@ -123,7 +125,7 @@ async function createCustomerInline() {
 async function checkout() {
   checkoutError.value = ''
   if (paymentType.value === 'debt' && !selectedCustomer.value) {
-    checkoutError.value = 'Qarzga sotish uchun mijozni tanlang yoki qo\'shing.'
+    checkoutError.value = "Qarzga sotish uchun mijozni tanlang yoki qo'shing."
     return
   }
   checkingOut.value = true
@@ -139,7 +141,9 @@ async function checkout() {
 </script>
 
 <template>
-  <div class="mx-auto grid w-full max-w-6xl gap-4 px-4 py-6 md:grid-cols-[1fr_23rem] md:px-10 md:py-10">
+  <div
+    class="mx-auto grid w-full max-w-6xl gap-4 px-4 py-6 md:grid-cols-[1fr_23rem] md:px-10 md:py-10"
+  >
     <!-- Catalog column -->
     <div>
       <div class="mb-3 flex gap-2">
@@ -167,7 +171,11 @@ async function checkout() {
         </div>
       </div>
 
-      <BarcodeScanner v-if="showScanner" @detected="onBarcodeDetected" @close="showScanner = false" />
+      <BarcodeScanner
+        v-if="showScanner"
+        @detected="onBarcodeDetected"
+        @close="showScanner = false"
+      />
 
       <p
         v-if="stockNotice"
@@ -210,8 +218,15 @@ async function checkout() {
           class="flex items-center gap-2.5 rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] p-2.5 text-left text-sm font-semibold transition hover:border-[var(--color-accent)] active:scale-[0.98] disabled:opacity-40"
           @click="addToCart(product)"
         >
-          <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[var(--color-paper)]">
-            <img v-if="product.image" :src="product.image" alt="" class="h-full w-full object-cover" />
+          <div
+            class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[var(--color-paper)]"
+          >
+            <img
+              v-if="product.image"
+              :src="product.image"
+              alt=""
+              class="h-full w-full object-cover"
+            />
             <Icon v-else name="box" :size="16" class="text-[var(--color-ink-soft)]" />
           </div>
           <span class="min-w-0">
@@ -235,8 +250,15 @@ async function checkout() {
           class="flex items-center justify-between border-b border-[var(--color-line)] p-3 last:border-0"
         >
           <div class="flex min-w-0 items-center gap-2.5">
-            <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[var(--color-paper)]">
-              <img v-if="item.product.image" :src="item.product.image" alt="" class="h-full w-full object-cover" />
+            <div
+              class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[var(--color-paper)]"
+            >
+              <img
+                v-if="item.product.image"
+                :src="item.product.image"
+                alt=""
+                class="h-full w-full object-cover"
+              />
               <Icon v-else name="box" :size="14" class="text-[var(--color-ink-soft)]" />
             </div>
             <div class="min-w-0">

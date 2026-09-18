@@ -127,7 +127,9 @@ async function archive() {
       <Icon name="arrow-left" :size="16" />
       Orqaga
     </button>
-    <h1 class="mb-4 text-xl font-bold">{{ isEdit ? 'Mahsulotni tahrirlash' : 'Yangi mahsulot' }}</h1>
+    <h1 class="mb-4 text-xl font-bold">
+      {{ isEdit ? 'Mahsulotni tahrirlash' : 'Yangi mahsulot' }}
+    </h1>
 
     <BarcodeScanner v-if="showScanner" @detected="onBarcodeDetected" @close="showScanner = false" />
 
@@ -157,7 +159,13 @@ async function archive() {
             <Icon name="camera" :size="24" />
             <span class="text-xs font-semibold">Rasm qo'shish</span>
           </span>
-          <input type="file" accept="image/*" capture="environment" class="hidden" @change="onImageChange" />
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            class="hidden"
+            @change="onImageChange"
+          />
         </label>
       </div>
       <div>
@@ -169,7 +177,9 @@ async function archive() {
         />
       </div>
       <div>
-        <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]">Kategoriya</label>
+        <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]"
+          >Kategoriya</label
+        >
         <div class="flex gap-2">
           <select
             v-model="form.category"
@@ -207,7 +217,10 @@ async function archive() {
       </div>
       <div>
         <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]">Birlik</label>
-        <select v-model="form.unit" class="w-full rounded-lg border border-[var(--color-line)] px-3 py-2.5">
+        <select
+          v-model="form.unit"
+          class="w-full rounded-lg border border-[var(--color-line)] px-3 py-2.5"
+        >
           <option value="piece">Dona</option>
           <option value="kg">Kilogram</option>
           <option value="liter">Litr</option>

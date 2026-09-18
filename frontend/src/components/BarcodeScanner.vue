@@ -26,7 +26,7 @@ async function start() {
     await videoRef.value.play()
     scan()
   } catch {
-    error.value = "Kameraga ruxsat berilmadi yoki kamera topilmadi."
+    error.value = 'Kameraga ruxsat berilmadi yoki kamera topilmadi.'
   }
 }
 
@@ -63,11 +63,17 @@ onBeforeUnmount(stop)
       <Icon name="close" :size="24" />
     </button>
 
-    <div v-if="!supported" class="flex flex-1 items-center justify-center p-6 text-center text-white">
-      Bu brauzer kamera orqali shtrix-kod o'qishni qo'llab-quvvatlamaydi.
-      Mahsulotni nomi bo'yicha qidiring.
+    <div
+      v-if="!supported"
+      class="flex flex-1 items-center justify-center p-6 text-center text-white"
+    >
+      Bu brauzer kamera orqali shtrix-kod o'qishni qo'llab-quvvatlamaydi. Mahsulotni nomi bo'yicha
+      qidiring.
     </div>
-    <div v-else-if="error" class="flex flex-1 items-center justify-center p-6 text-center text-white">
+    <div
+      v-else-if="error"
+      class="flex flex-1 items-center justify-center p-6 text-center text-white"
+    >
       {{ error }}
     </div>
     <video v-else ref="videoRef" class="flex-1 object-cover" muted playsinline></video>

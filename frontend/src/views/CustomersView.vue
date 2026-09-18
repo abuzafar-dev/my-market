@@ -89,10 +89,17 @@ async function createCustomer() {
     </div>
 
     <div v-if="loading" class="space-y-2">
-      <div v-for="i in 3" :key="i" class="h-16 animate-pulse rounded-xl bg-[var(--color-line)]/40" />
+      <div
+        v-for="i in 3"
+        :key="i"
+        class="h-16 animate-pulse rounded-xl bg-[var(--color-line)]/40"
+      />
     </div>
 
-    <div v-else class="overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)]">
+    <div
+      v-else
+      class="overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)]"
+    >
       <RouterLink
         v-for="customer in customers"
         :key="customer.id"
@@ -105,12 +112,16 @@ async function createCustomer() {
         </div>
         <span
           class="font-mono font-bold"
-          :class="customer.debt_balance > 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-accent)]'"
+          :class="
+            customer.debt_balance > 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-accent)]'
+          "
         >
           {{ formatMoney(customer.debt_balance) }}
         </span>
       </RouterLink>
-      <p v-if="!customers.length" class="p-8 text-center text-[var(--color-ink-soft)]">Mijoz topilmadi</p>
+      <p v-if="!customers.length" class="p-8 text-center text-[var(--color-ink-soft)]">
+        Mijoz topilmadi
+      </p>
     </div>
   </div>
 </template>
