@@ -156,7 +156,10 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
-    "DEFAULT_THROTTLE_RATES": {"anon": "20/min"},
+    # "writes" is applied per-action (get_throttles()) to the write-heavy
+    # endpoints that need abuse protection — sale creation, debt entries
+    # (P5) — everything else stays under the anon-only default above.
+    "DEFAULT_THROTTLE_RATES": {"anon": "20/min", "writes": "120/min"},
     "EXCEPTION_HANDLER": "apps.common.exceptions.exception_handler",
 }
 

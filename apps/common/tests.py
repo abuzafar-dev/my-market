@@ -2,10 +2,14 @@
 seller, and cost-price data must not leak into a seller's view of a sale."""
 
 from decimal import Decimal
+from unittest.mock import patch
 
+from django.core.cache import cache
 from rest_framework.test import APITestCase
+from rest_framework.throttling import ScopedRateThrottle
 
 from apps.catalog.models import Batch, Product
+from apps.debt.models import Customer
 from apps.sales.models import Sale
 from apps.sales.services import CartLine, create_sale
 from apps.shops.models import Shop, ShopSettings, User
@@ -143,3 +147,36 @@ class SaleUnitCostVisibilityTests(RoleTestCase):
         response = self.client.get(f"/api/sales/{self.sale.id}/")
         self.assertEqual(response.status_code, 200)
         self.assertIn("unit_cost", response.data["items"][0])
+
+
+class WriteThrottleTests(RoleTestCase):
+    """The 'writes' scope (P5) is applied per-action via get_throttles(),
+    not globally — verify it actually fires for a scoped action rather than
+    just trusting the wiring."""
+
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+        self.customer = Customer.objects.create(shop=self.shop, full_name="Mijoz")
+        self.addCleanup(cache.clear)
+
+    def test_debt_action_throttles_after_limit(self):
+        # ScopedRateThrottle.THROTTLE_RATES is bound to api_settings at
+        # class-definition time, so override_settings(REST_FRAMEWORK=...)
+        # doesn't reach it (a known DRF gotcha) — patch the class attribute
+        # directly, the same way DRF's own test suite does this.
+        url = f"/api/customers/{self.customer.id}/debt/"
+        with patch.object(ScopedRateThrottle, "THROTTLE_RATES", {"writes": "1/min"}):
+            self.client.force_authenticate(self.owner)
+            first = self.client.post(url, {"amount": 1000}, format="json")
+            second = self.client.post(url, {"amount": 1000}, format="json")
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 429)
+
+    def test_browsing_customers_is_unaffected_by_writes_scope(self):
+        with patch.object(ScopedRateThrottle, "THROTTLE_RATES", {"writes": "1/min"}):
+            self.client.force_authenticate(self.owner)
+            for _ in range(3):
+                response = self.client.get("/api/customers/")
+                self.assertEqual(response.status_code, 200)

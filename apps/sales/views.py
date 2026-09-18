@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 
 from apps.catalog.models import Product
 from apps.catalog.services import requires_whole_number
@@ -17,6 +18,14 @@ from .services import CartLine, InsufficientStock, cancel_sale, create_sale
 class SaleViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "post", "head", "options"]
     serializer_class = SaleReadSerializer
+
+    def get_throttles(self):
+        # Basic abuse protection on checkout (P5) — browsing sales stays
+        # under the default anon-only throttling.
+        if self.action == "create":
+            self.throttle_scope = "writes"
+            return [ScopedRateThrottle()]
+        return super().get_throttles()
 
     def get_queryset(self):
         queryset = (

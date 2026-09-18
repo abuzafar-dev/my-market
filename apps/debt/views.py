@@ -4,6 +4,7 @@ from django.db.models import Prefetch
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 
 from .models import Customer, DebtEntry
 from .serializers import (
@@ -17,6 +18,15 @@ from .services import add_debt, add_payment
 class CustomerViewSet(viewsets.ModelViewSet):
     # No hard delete: customers, like everything with a ledger, are archived.
     http_method_names = ["get", "post", "patch", "head", "options"]
+
+    def get_throttles(self):
+        # Basic abuse protection on the write-heavy debt actions (P5) —
+        # browsing/creating customers stays under the default anon-only
+        # throttling.
+        if self.action in {"debt", "payment"}:
+            self.throttle_scope = "writes"
+            return [ScopedRateThrottle()]
+        return super().get_throttles()
 
     def get_serializer_class(self):
         if self.action == "retrieve":
