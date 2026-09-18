@@ -1,4 +1,7 @@
+from decimal import Decimal
+
 from django.contrib import admin
+from django.db.models import Sum
 
 from .models import Batch, Category, Product, WriteOff
 
@@ -28,7 +31,7 @@ class ProductAdmin(admin.ModelAdmin):
 
     @admin.display(description="Qoldiq")
     def stock(self, obj: Product):
-        return obj.stock
+        return obj.batches.aggregate(total=Sum("qty_remaining"))["total"] or Decimal("0")
 
 
 @admin.register(Batch)

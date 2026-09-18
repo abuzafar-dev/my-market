@@ -9,7 +9,10 @@ class Customer(BaseModel):
         Shop, on_delete=models.CASCADE, related_name="customers", verbose_name="Do'kon"
     )
     full_name = models.CharField(max_length=255, verbose_name="F.I.Sh.")
-    phone = models.CharField(max_length=20, verbose_name="Telefon")
+    # Optional: the quick "add a customer mid-sale" flow only asks for a
+    # name (TZ v2 1.3 — every action stays within a couple of taps), so
+    # the phone can be filled in later from the full customer form.
+    phone = models.CharField(max_length=20, blank=True, verbose_name="Telefon")
     note = models.TextField(blank=True, verbose_name="Izoh")
     debt_balance = models.BigIntegerField(default=0, verbose_name="Qarz qoldig'i")
     is_active = models.BooleanField(default=True, verbose_name="Faol")

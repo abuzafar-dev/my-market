@@ -1,0 +1,97 @@
+"""Sale endpoints — FIFO checkout, listing, and cancellation (TZ v2 8.2–8.3)."""
+from django.shortcuts import get_object_or_404
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+from apps.catalog.models import Product
+from apps.catalog.services import requires_whole_number
+from apps.debt.models import Customer
+
+from .models import Sale
+from .serializers import SaleCreateSerializer, SaleReadSerializer
+from .services import CartLine, InsufficientStock, cancel_sale, create_sale
+
+
+class SaleViewSet(viewsets.ModelViewSet):
+    http_method_names = ["get", "post", "head", "options"]
+    serializer_class = SaleReadSerializer
+
+    def get_queryset(self):
+        queryset = (
+            Sale.objects.filter(shop=self.request.user.shop)
+            .prefetch_related("items__product")
+            .order_by("-sold_at")
+        )
+        date_ = self.request.query_params.get("date")
+        status_ = self.request.query_params.get("status")
+        if date_:
+            queryset = queryset.filter(sold_at__date=date_)
+        if status_:
+            queryset = queryset.filter(status=status_)
+        return queryset
+
+    def create(self, request, *args, **kwargs):
+        serializer = SaleCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        shop = request.user.shop
+
+        product_ids = [item["product_id"] for item in data["items"]]
+        products = {p.id: p for p in Product.objects.filter(shop=shop, id__in=product_ids)}
+        missing = set(product_ids) - set(products)
+        if missing:
+            return Response(
+                {"data": None, "error": {"code": "product_not_found", "message": "Mahsulot topilmadi."}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        for item in data["items"]:
+            product = products[item["product_id"]]
+            if requires_whole_number(product.unit, item["qty"]):
+                return Response(
+                    {
+                        "data": None,
+                        "error": {
+                            "code": "invalid_quantity",
+                            "message": f"{product.name}: dona hisobida faqat butun son bo'lishi kerak.",
+                        },
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        cart = [CartLine(product=products[i["product_id"]], qty=i["qty"]) for i in data["items"]]
+
+        customer = None
+        if data.get("customer_id"):
+            customer = get_object_or_404(Customer, shop=shop, id=data["customer_id"])
+
+        try:
+            sale = create_sale(
+                shop=shop,
+                user=request.user,
+                client_id=data["client_id"],
+                payment_type=data["payment_type"],
+                customer=customer,
+                cart=cart,
+            )
+        except InsufficientStock as exc:
+            return Response(
+                {
+                    "data": None,
+                    "error": {
+                        "code": "insufficient_stock",
+                        "message": str(exc),
+                        "product_id": str(exc.product.id),
+                    },
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(SaleReadSerializer(sale).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        sale = self.get_object()
+        sale = cancel_sale(sale, request.user)
+        return Response(SaleReadSerializer(sale).data)

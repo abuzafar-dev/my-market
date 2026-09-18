@@ -1,7 +1,8 @@
 from decimal import Decimal
 
+from django.core.validators import MinValueValidator
 from django.db import models
-from django.db.models import Sum
+from django.utils import timezone
 
 from apps.common.models import BaseModel
 from apps.shops.models import Shop, User
@@ -23,6 +24,10 @@ class Category(BaseModel):
 
 
 class Product(BaseModel):
+    """Stock is never stored here — see TZ v2 7.1: it's always summed live
+    from ``batches.qty_remaining`` via ``apps.catalog.services.with_stock``,
+    so there is exactly one source of truth."""
+
     class Unit(models.TextChoices):
         PIECE = "piece", "Dona"
         KG = "kg", "Kilogram"
@@ -40,6 +45,9 @@ class Product(BaseModel):
         verbose_name="Kategoriya",
     )
     name = models.CharField(max_length=255, verbose_name="Nomi")
+    image = models.ImageField(
+        upload_to="products/", null=True, blank=True, verbose_name="Rasm"
+    )
     barcode = models.CharField(
         max_length=64, null=True, blank=True, db_index=True, verbose_name="Shtrix-kod"
     )
@@ -62,11 +70,6 @@ class Product(BaseModel):
     def __str__(self) -> str:
         return self.name
 
-    @property
-    def stock(self) -> Decimal:
-        total = self.batches.aggregate(total=Sum("qty_remaining"))["total"]
-        return total or Decimal("0")
-
 
 class Batch(BaseModel):
     shop = models.ForeignKey(
@@ -76,16 +79,21 @@ class Batch(BaseModel):
         Product, on_delete=models.PROTECT, related_name="batches", verbose_name="Mahsulot"
     )
     qty_initial = models.DecimalField(
-        max_digits=12, decimal_places=3, verbose_name="Boshlang'ich miqdor"
+        max_digits=12,
+        decimal_places=3,
+        validators=[MinValueValidator(Decimal("0.001"))],
+        verbose_name="Boshlang'ich miqdor",
     )
     qty_remaining = models.DecimalField(
         max_digits=12, decimal_places=3, verbose_name="Qolgan miqdor"
     )
-    cost_price = models.BigIntegerField(verbose_name="Tannarx")
-    sale_price = models.BigIntegerField(verbose_name="Sotuv narxi")
-    produced_at = models.DateField(verbose_name="Ishlab chiqarilgan sana")
+    cost_price = models.PositiveBigIntegerField(verbose_name="Tannarx")
+    sale_price = models.PositiveBigIntegerField(verbose_name="Sotuv narxi")
+    produced_at = models.DateField(
+        null=True, blank=True, verbose_name="Ishlab chiqarilgan sana"
+    )
     expires_at = models.DateField(null=True, blank=True, verbose_name="Yaroqlilik muddati")
-    received_at = models.DateTimeField(verbose_name="Qabul qilingan sana")
+    received_at = models.DateTimeField(default=timezone.now, verbose_name="Qabul qilingan sana")
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -103,7 +111,11 @@ class Batch(BaseModel):
             models.CheckConstraint(
                 condition=models.Q(qty_remaining__gte=0),
                 name="batch_qty_remaining_gte_0",
-            )
+            ),
+            models.CheckConstraint(
+                condition=models.Q(qty_initial__gt=0),
+                name="batch_qty_initial_gt_0",
+            ),
         ]
 
     def __str__(self) -> str:
@@ -123,8 +135,13 @@ class WriteOff(BaseModel):
     batch = models.ForeignKey(
         Batch, on_delete=models.PROTECT, related_name="write_offs", verbose_name="Partiya"
     )
-    qty = models.DecimalField(max_digits=12, decimal_places=3, verbose_name="Miqdor")
-    cost_total = models.BigIntegerField(verbose_name="Umumiy tannarx")
+    qty = models.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        validators=[MinValueValidator(Decimal("0.001"))],
+        verbose_name="Miqdor",
+    )
+    cost_total = models.PositiveBigIntegerField(verbose_name="Umumiy tannarx")
     reason = models.CharField(max_length=10, choices=Reason.choices, verbose_name="Sababi")
     note = models.TextField(blank=True, verbose_name="Izoh")
     created_by = models.ForeignKey(

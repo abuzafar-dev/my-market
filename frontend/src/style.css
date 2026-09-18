@@ -1,0 +1,74 @@
+@import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap");
+
+/* A considered, warm-neutral palette instead of Tailwind's default slate
+   (the most common "AI SaaS" fingerprint) — one accent (money green),
+   two semantic colors (warning amber, danger red), nothing decorative. */
+@theme {
+  --font-sans: "Manrope", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-ink: #1c1b17;
+  --color-ink-soft: #6f6b60;
+  --color-paper: #faf9f6;
+  --color-surface: #ffffff;
+  --color-line: #e6e2d8;
+
+  --color-accent: #146c43;
+  --color-accent-soft: #e7f2ec;
+  --color-warn: #9a5b0a;
+  --color-warn-soft: #fbf0dd;
+  --color-danger: #a8341f;
+  --color-danger-soft: #faeae6;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Big, thumb-friendly hit targets everywhere — the shop owner uses this
+   one-handed, on a phone, 100+ times a day (TZ v2 1.3 / 2.3). */
+button,
+a.button,
+input,
+select {
+  min-height: 2.75rem;
+}
+
+button {
+  cursor: pointer;
+}
+
+input,
+select {
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+input:focus-visible,
+select:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
