@@ -1,0 +1,47 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-my_market_db}
+      POSTGRES_USER: ${POSTGRES_USER:-my_market_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-my_market_user}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      # Container-networking values that must differ from the host-based
+      # dev workflow's .env (see .env.example) — override rather than
+      # trust what's in the file.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-my_market_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-my_market_db}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - media:/app/media
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api}
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  postgres_data:
+  media:
