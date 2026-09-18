@@ -1,0 +1,5 @@
+-r requirements.txt
+
+# Dev tooling: pre-commit hooks (secret scanning now; ruff/formatting added in P4)
+pre-commit==4.6.2
+detect-secrets==1.5.0

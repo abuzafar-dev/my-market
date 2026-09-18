@@ -1,5 +1,8 @@
 .venv/
 .env
+CREDENTIALS.local.md
+adhoc.crt
+adhoc.key
 __pycache__/
 *.pyc
 .idea/
