@@ -3,6 +3,10 @@ import { defineStore } from 'pinia'
 import api from '@/api/client'
 import { uuid } from '@/utils/uuid'
 
+// Fractional kg add up with float error (0.1 + 0.2), and the backend
+// stores 3 decimals — round every quantity to match.
+const roundQty = (qty) => Math.round(qty * 1000) / 1000
+
 export const useCartStore = defineStore('cart', {
   state: () => ({
     items: [], // { product, qty }
@@ -28,7 +32,7 @@ export const useCartStore = defineStore('cart', {
     addProduct(product, qty = 1) {
       const maxQty = Number(product.stock ?? 0)
       const existing = this.items.find((item) => item.product.id === product.id)
-      const wanted = (existing?.qty ?? 0) + qty
+      const wanted = roundQty((existing?.qty ?? 0) + qty)
       const capped = Math.min(wanted, maxQty)
 
       if (existing) {
@@ -45,7 +49,7 @@ export const useCartStore = defineStore('cart', {
       if (!item) return false
 
       const maxQty = Number(item.product.stock ?? 0)
-      const capped = Math.min(qty, maxQty)
+      const capped = roundQty(Math.min(qty, maxQty))
 
       if (capped <= 0) {
         this.removeProduct(productId)

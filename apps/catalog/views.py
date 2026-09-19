@@ -26,6 +26,7 @@ from .services import (
     expiring_batches,
     low_stock_products,
     quick_products,
+    with_price,
     with_stock,
     write_off_batch,
 )
@@ -59,7 +60,9 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         shop = self.request.user.shop
-        queryset = with_stock(Product.objects.filter(shop=shop))
+        queryset = with_price(with_stock(Product.objects.filter(shop=shop))).select_related(
+            "category"
+        )
 
         if self.action != "list":
             return queryset
@@ -69,11 +72,11 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         filter_ = self.request.query_params.get("filter")
         if filter_ == "low":
-            return low_stock_products(shop)
+            return with_price(low_stock_products(shop)).select_related("category")
 
         queryset = queryset.filter(is_active=True)
         if filter_ == "expiring":
-            product_ids = expiring_batches(shop, shop.settings.expiry_warn_days).values_list(
+            product_ids = expiring_batches(shop, shop.get_settings().expiry_warn_days).values_list(
                 "product_id", flat=True
             )
             queryset = queryset.filter(id__in=set(product_ids))
@@ -92,7 +95,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         # batches (with their 🟡/🔴 status) before serializing (TZ v2 3.6).
         shop = request.user.shop
         batches_by_product = defaultdict(list)
-        for batch in expiring_batches(shop, shop.settings.expiry_warn_days):
+        for batch in expiring_batches(shop, shop.get_settings().expiry_warn_days):
             batches_by_product[batch.product_id].append(batch)
 
         products = list(self.filter_queryset(self.get_queryset()))
@@ -114,7 +117,11 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path=r"barcode/(?P<code>[^/]+)")
     def barcode(self, request, code=None):
-        product = with_stock(Product.objects.filter(shop=request.user.shop, barcode=code)).first()
+        product = (
+            with_price(with_stock(Product.objects.filter(shop=request.user.shop, barcode=code)))
+            .select_related("category")
+            .first()
+        )
         if product is None:
             raise Http404
         return Response(ProductSerializer(product, context=self.get_serializer_context()).data)
@@ -128,7 +135,13 @@ class BatchCreateView(CreateAPIView):
 
 
 class BatchWriteOffView(APIView):
-    """POST /api/batches/{id}/writeoff/ (TZ v2 3.6)."""
+    """POST /api/batches/{id}/writeoff/ (TZ v2 3.6).
+
+    Owner-only: a write-off removes stock without a sale and feeds the
+    owner's "Yo'qotishlar" figure — letting a seller do it would let stock
+    disappear with no money trail."""
+
+    permission_classes = [IsAuthenticated, IsOwner]
 
     def post(self, request, pk=None):
         serializer = WriteOffInputSerializer(data=request.data)
@@ -151,6 +164,6 @@ class PurchaseListView(APIView):
     """GET /api/purchase-list/ — low-stock products to restock (TZ v2 3.7)."""
 
     def get(self, request):
-        products = low_stock_products(request.user.shop)
+        products = with_price(low_stock_products(request.user.shop)).select_related("category")
         serializer = ProductSerializer(products, many=True, context={"request": request})
         return Response(serializer.data)

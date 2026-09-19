@@ -5,66 +5,84 @@ import { useRoute, useRouter } from 'vue-router'
 import api from '@/api/client'
 import BarcodeScanner from '@/components/BarcodeScanner.vue'
 import Icon from '@/components/Icon.vue'
+import FieldLabel from '@/components/FieldLabel.vue'
+import PageTitle from '@/components/PageTitle.vue'
+import ProductPicker from '@/components/ProductPicker.vue'
+import { t } from '@/i18n'
+import { useToastStore } from '@/stores/toast'
+import { unitMeta } from '@/utils/units'
+import { apiError } from '@/utils/errors'
 
 const route = useRoute()
 const router = useRouter()
+const toast = useToastStore()
 
-const products = ref([])
+const selectedProduct = ref(null)
 const form = ref({
-  product: route.query.product || '',
   qty_initial: '',
   cost_price: '',
   expires_at: '',
 })
-const error = ref('')
 const saving = ref(false)
 const showScanner = ref(false)
 const scanNotice = ref('')
 
 // TZ v2 3.1: "dona" products can't have a fractional quantity — you
 // can't stock or sell half a bottle. Only kg/liter allow decimals.
-const selectedUnit = computed(
-  () => products.value.find((p) => p.id === form.value.product)?.unit ?? 'piece',
-)
+const selectedUnit = computed(() => selectedProduct.value?.unit ?? 'piece')
 const qtyStep = computed(() => (selectedUnit.value === 'piece' ? '1' : '0.001'))
 
+// Opened from a product's "Kirim qilish" link (or right after creating one):
+// fetch just that product — no list of the whole catalogue needed.
 onMounted(async () => {
-  const response = await api.get('/products/')
-  products.value = response.data.data.results ?? response.data.data
+  if (!route.query.product) return
+  try {
+    const response = await api.get(`/products/${route.query.product}/`)
+    selectedProduct.value = response.data.data
+  } catch (err) {
+    toast.error(apiError(err))
+  }
 })
 
-// TZ v2 3.2: the product for a kirim can be picked from the list or
-// found by scanning its barcode — the same lookup Sotuv uses.
+// TZ v2 3.2: the product for a kirim can be found by typing its name or by
+// scanning its barcode — the same lookup Sotuv uses.
 async function onBarcodeDetected(code) {
   showScanner.value = false
   scanNotice.value = ''
   try {
     const response = await api.get(`/products/barcode/${code}/`)
-    const product = response.data.data
-    form.value.product = product.id
-    if (!products.value.some((p) => p.id === product.id)) {
-      products.value.push(product)
-    }
-    scanNotice.value = `Tanlandi: ${product.name}`
+    selectedProduct.value = response.data.data
+    scanNotice.value = t('batch.picked', { name: selectedProduct.value.name })
+    toast.info(scanNotice.value)
   } catch (err) {
     if (err.response?.status === 404) {
       router.push({ name: 'product-new', query: { barcode: code } })
+    } else {
+      toast.error(t('common.error'))
     }
   }
 }
 
 async function save() {
-  error.value = ''
+  if (!selectedProduct.value) {
+    toast.warn(t('batch.pick_required'))
+    return
+  }
   saving.value = true
   try {
     // An empty <input type="date"> submits '' — the backend's DateField
     // only accepts a real date or null, so an unset expiry must go as
     // null, not an empty string, or every kirim without one 400s.
-    const payload = { ...form.value, expires_at: form.value.expires_at || null }
+    const payload = {
+      ...form.value,
+      product: selectedProduct.value.id,
+      expires_at: form.value.expires_at || null,
+    }
     await api.post('/batches/', payload)
+    toast.success(t('batch.saved'))
     router.push({ name: 'products' })
   } catch (err) {
-    error.value = err.response?.data?.error?.message || 'Xatolik yuz berdi.'
+    toast.error(apiError(err))
   } finally {
     saving.value = false
   }
@@ -79,54 +97,41 @@ async function save() {
       @click="router.back()"
     >
       <Icon name="arrow-left" :size="16" />
-      Orqaga
+      {{ t('common.back') }}
     </button>
-    <h1 class="mb-4 text-xl font-bold">Kirim</h1>
+    <PageTitle icon="box" :title="t('batch.title')" />
 
     <BarcodeScanner v-if="showScanner" @detected="onBarcodeDetected" @close="showScanner = false" />
 
     <form
-      class="space-y-4 rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5"
+      class="space-y-3.5 rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)] p-4"
       @submit.prevent="save"
     >
-      <p
-        v-if="error"
-        class="rounded-lg border border-[var(--color-danger)]/25 bg-[var(--color-danger-soft)] px-3 py-2 text-sm font-semibold text-[var(--color-danger)]"
-      >
-        {{ error }}
-      </p>
-
       <div>
-        <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]"
-          >Mahsulot</label
-        >
-        <button
-          type="button"
-          class="mb-2 flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--color-ink)] py-2.5 text-sm font-bold text-white transition active:scale-[0.98]"
-          @click="showScanner = true"
-        >
-          <Icon name="camera" :size="18" />
-          Shtrix-kodni skanerlash
-        </button>
-        <p v-if="scanNotice" class="mb-2 text-sm font-semibold text-[var(--color-accent)]">
-          {{ scanNotice }}
-        </p>
-        <select
-          v-model="form.product"
-          required
-          class="w-full rounded-lg border border-[var(--color-line)] px-3 py-2.5"
-        >
-          <option value="" disabled>...yoki ro'yxatdan tanlang</option>
-          <option v-for="product in products" :key="product.id" :value="product.id">
-            {{ product.name }}
-          </option>
-        </select>
+        <FieldLabel icon="box">{{ t('batch.product') }}</FieldLabel>
+        <!-- Product already known (opened via a specific product's "Kirim
+        qilish" link) — scanning again to re-identify it is redundant.
+        Scanning is only for the generic "which product is this?" case. -->
+        <template v-if="!route.query.product">
+          <button
+            type="button"
+            class="mb-2 flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--color-ink)] py-2.5 text-sm font-bold text-white transition active:scale-[0.98]"
+            @click="showScanner = true"
+          >
+            <Icon name="camera" :size="18" />
+            {{ t('batch.scan') }}
+          </button>
+          <p v-if="scanNotice" class="mb-2 text-sm font-semibold text-[var(--color-accent)]">
+            {{ scanNotice }}
+          </p>
+        </template>
+        <ProductPicker v-model="selectedProduct" />
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]">
-            Miqdori {{ selectedUnit === 'piece' ? '(dona)' : `(${selectedUnit})` }}
-          </label>
+          <FieldLabel icon="ruler">
+            {{ t('batch.qty', { unit: unitMeta(selectedUnit).label }) }}
+          </FieldLabel>
           <input
             v-model.number="form.qty_initial"
             type="number"
@@ -137,9 +142,7 @@ async function save() {
           />
         </div>
         <div>
-          <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]"
-            >Kirim narxi</label
-          >
+          <FieldLabel icon="cash">{{ t('batch.cost') }}</FieldLabel>
           <input
             v-model.number="form.cost_price"
             type="number"
@@ -149,9 +152,7 @@ async function save() {
         </div>
       </div>
       <div>
-        <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]">
-          Yaroqlilik muddati
-        </label>
+        <FieldLabel icon="calendar">{{ t('batch.expires') }}</FieldLabel>
         <input
           v-model="form.expires_at"
           type="date"
@@ -164,7 +165,7 @@ async function save() {
         :disabled="saving"
         class="w-full rounded-lg bg-[var(--color-ink)] py-3 font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
       >
-        Saqlash
+        {{ saving ? t('common.loading') : t('common.save') }}
       </button>
     </form>
   </div>

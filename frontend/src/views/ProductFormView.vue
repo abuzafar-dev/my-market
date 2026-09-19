@@ -1,14 +1,22 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import api from '@/api/client'
 import BarcodeScanner from '@/components/BarcodeScanner.vue'
 import Icon from '@/components/Icon.vue'
+import FieldLabel from '@/components/FieldLabel.vue'
+import InfoHint from '@/components/InfoHint.vue'
+import PageTitle from '@/components/PageTitle.vue'
+import PhotoCapture from '@/components/PhotoCapture.vue'
+import { t } from '@/i18n'
+import { useToastStore } from '@/stores/toast'
+import { apiError } from '@/utils/errors'
 
 const props = defineProps({ id: String })
 const route = useRoute()
 const router = useRouter()
+const toast = useToastStore()
 const isEdit = Boolean(props.id)
 
 const form = ref({
@@ -19,19 +27,22 @@ const form = ref({
   min_stock: 0,
   barcode: route.query.barcode || '',
 })
-const error = ref('')
 const saving = ref(false)
 const showScanner = ref(false)
 
 const existingImageUrl = ref(null)
-const imageFile = ref(null)
-const imagePreview = ref(null)
+const imageFile = ref(null) // a small JPEG made by PhotoCapture
+const photoCapturing = ref(false)
 
-function onImageChange(event) {
-  const file = event.target.files[0]
-  if (!file) return
-  imageFile.value = file
-  imagePreview.value = URL.createObjectURL(file)
+// Only one camera at a time: opening the photo camera closes the barcode
+// scanner, and the barcode button below closes the photo camera.
+watch(photoCapturing, (on) => {
+  if (on) showScanner.value = false
+})
+
+function openBarcodeScanner() {
+  photoCapturing.value = false
+  showScanner.value = true
 }
 
 const categories = ref([])
@@ -58,6 +69,9 @@ async function createCategory() {
     form.value.category = response.data.data.id
     newCategoryName.value = ''
     showNewCategory.value = false
+    toast.success(t('product_form.category_added'))
+  } catch (err) {
+    toast.error(apiError(err))
   } finally {
     savingCategory.value = false
   }
@@ -93,27 +107,38 @@ function buildPayload() {
 }
 
 async function save() {
-  error.value = ''
   saving.value = true
   try {
     const payload = buildPayload()
     if (isEdit) {
       await api.patch(`/products/${props.id}/`, payload)
+      toast.success(t('product_form.saved'))
+      router.push({ name: 'products' })
     } else {
-      await api.post('/products/', payload)
+      // A brand-new product has zero stock — the very next thing an owner
+      // does is add kirim for it, so skip the products list and go
+      // straight there with the product already picked (no barcode scan
+      // needed a second time for the product they just created).
+      const response = await api.post('/products/', payload)
+      toast.success(t('product_form.saved'))
+      router.push({ name: 'batch-new', query: { product: response.data.data.id } })
     }
-    router.push({ name: 'products' })
   } catch (err) {
-    error.value = err.response?.data?.error?.message || 'Xatolik yuz berdi.'
+    toast.error(apiError(err))
   } finally {
     saving.value = false
   }
 }
 
 async function archive() {
-  if (!confirm('Mahsulotni arxivlashni tasdiqlaysizmi?')) return
-  await api.post(`/products/${props.id}/archive/`)
-  router.push({ name: 'products' })
+  if (!confirm(t('product_form.archive_confirm'))) return
+  try {
+    await api.post(`/products/${props.id}/archive/`)
+    toast.success(t('product_form.archived'))
+    router.push({ name: 'products' })
+  } catch (err) {
+    toast.error(apiError(err))
+  }
 }
 </script>
 
@@ -125,51 +150,26 @@ async function archive() {
       @click="router.back()"
     >
       <Icon name="arrow-left" :size="16" />
-      Orqaga
+      {{ t('common.back') }}
     </button>
-    <h1 class="mb-4 text-xl font-bold">
-      {{ isEdit ? 'Mahsulotni tahrirlash' : 'Yangi mahsulot' }}
-    </h1>
+    <PageTitle
+      :icon="isEdit ? 'pencil' : 'box'"
+      :title="isEdit ? t('product_form.edit') : t('product_form.create')"
+    />
 
     <BarcodeScanner v-if="showScanner" @detected="onBarcodeDetected" @close="showScanner = false" />
 
     <form
-      class="space-y-4 rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5"
+      class="space-y-3.5 rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)] p-4"
       @submit.prevent="save"
     >
-      <p
-        v-if="error"
-        class="rounded-lg border border-[var(--color-danger)]/25 bg-[var(--color-danger-soft)] px-3 py-2 text-sm font-semibold text-[var(--color-danger)]"
-      >
-        {{ error }}
-      </p>
-
+      <PhotoCapture
+        v-model="imageFile"
+        v-model:capturing="photoCapturing"
+        :existing-url="existingImageUrl"
+      />
       <div>
-        <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]">Rasm</label>
-        <label
-          class="flex h-32 w-32 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed border-[var(--color-line)] bg-[var(--color-paper)]"
-        >
-          <img
-            v-if="imagePreview || existingImageUrl"
-            :src="imagePreview || existingImageUrl"
-            alt=""
-            class="h-full w-full object-cover"
-          />
-          <span v-else class="flex flex-col items-center gap-1 text-[var(--color-ink-soft)]">
-            <Icon name="camera" :size="24" />
-            <span class="text-xs font-semibold">Rasm qo'shish</span>
-          </span>
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            class="hidden"
-            @change="onImageChange"
-          />
-        </label>
-      </div>
-      <div>
-        <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]">Nomi</label>
+        <FieldLabel icon="tag">{{ t('product_form.name') }}</FieldLabel>
         <input
           v-model="form.name"
           required
@@ -177,15 +177,13 @@ async function archive() {
         />
       </div>
       <div>
-        <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]"
-          >Kategoriya</label
-        >
+        <FieldLabel icon="box">{{ t('product_form.category') }}</FieldLabel>
         <div class="flex gap-2">
           <select
             v-model="form.category"
             class="w-full rounded-lg border border-[var(--color-line)] px-3 py-2.5"
           >
-            <option :value="null">Kategoriyasiz</option>
+            <option :value="null">{{ t('product_form.no_category') }}</option>
             <option v-for="category in categories" :key="category.id" :value="category.id">
               {{ category.name }}
             </option>
@@ -201,7 +199,7 @@ async function archive() {
         <div v-if="showNewCategory" class="mt-2 flex gap-2">
           <input
             v-model="newCategoryName"
-            placeholder="Yangi kategoriya nomi"
+            :placeholder="t('product_form.new_category')"
             class="w-full rounded-lg border border-[var(--color-line)] px-3 py-2"
             @keydown.enter.prevent="createCategory"
           />
@@ -211,26 +209,24 @@ async function archive() {
             class="shrink-0 rounded-lg bg-[var(--color-ink)] px-3.5 text-sm font-bold text-white disabled:opacity-50"
             @click="createCategory"
           >
-            Qo'shish
+            {{ t('common.add') }}
           </button>
         </div>
       </div>
       <div>
-        <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]">Birlik</label>
+        <FieldLabel icon="ruler">{{ t('product_form.unit') }}</FieldLabel>
         <select
           v-model="form.unit"
           class="w-full rounded-lg border border-[var(--color-line)] px-3 py-2.5"
         >
-          <option value="piece">Dona</option>
-          <option value="kg">Kilogram</option>
-          <option value="liter">Litr</option>
+          <option value="piece">{{ t('units.piece_full') }}</option>
+          <option value="kg">{{ t('units.kg_full') }}</option>
+          <option value="liter">{{ t('units.liter_full') }}</option>
         </select>
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]">
-            Ustama foizi (%)
-          </label>
+          <FieldLabel icon="percent">{{ t('product_form.markup') }}</FieldLabel>
           <input
             v-model.number="form.markup_pct"
             type="number"
@@ -240,9 +236,7 @@ async function archive() {
           />
         </div>
         <div>
-          <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]">
-            Minimal qoldiq
-          </label>
+          <FieldLabel icon="warning">{{ t('product_form.min_stock') }}</FieldLabel>
           <input
             v-model.number="form.min_stock"
             type="number"
@@ -253,28 +247,22 @@ async function archive() {
         </div>
       </div>
       <div>
-        <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]">
-          Shtrix-kod (ixtiyoriy)
-        </label>
+        <FieldLabel icon="barcode">{{ t('product_form.barcode') }}</FieldLabel>
         <div class="flex gap-2">
           <input
             v-model="form.barcode"
-            placeholder="Shtrix-kodsiz ham saqlash mumkin"
+            :placeholder="t('product_form.barcode_placeholder')"
             class="w-full rounded-lg border border-[var(--color-line)] px-3 py-2.5"
           />
           <button
             type="button"
             class="flex shrink-0 items-center justify-center rounded-lg border border-[var(--color-line)] px-3.5"
-            @click="showScanner = true"
+            @click="openBarcodeScanner"
           >
             <Icon name="camera" :size="19" />
           </button>
         </div>
-        <p class="mt-1 text-xs text-[var(--color-ink-soft)]">
-          Meva-sabzavot kabi shtrix-kodsiz mahsulotlar uchun bu maydonni bo'sh qoldirib,
-          to'g'ridan-to'g'ri "Saqlash"ni bosing — keyinchalik "Mahsulotlar" ro'yxatidan nomi
-          bo'yicha qidirib topiladi.
-        </p>
+        <InfoHint class="mt-1">{{ t('product_form.barcode_hint') }}</InfoHint>
       </div>
 
       <button
@@ -282,7 +270,7 @@ async function archive() {
         :disabled="saving"
         class="w-full rounded-lg bg-[var(--color-ink)] py-3 font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
       >
-        Saqlash
+        {{ saving ? t('common.loading') : t('common.save') }}
       </button>
     </form>
 
@@ -292,7 +280,7 @@ async function archive() {
       class="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--color-accent)] py-3 text-center font-bold text-white transition active:scale-[0.98]"
     >
       <Icon name="plus" :size="18" />
-      Kirim qilish
+      {{ t('product_form.add_stock') }}
     </RouterLink>
     <button
       v-if="isEdit"
@@ -300,7 +288,7 @@ async function archive() {
       class="mt-3 w-full rounded-lg border border-[var(--color-danger)]/25 bg-[var(--color-danger-soft)] py-3 font-bold text-[var(--color-danger)]"
       @click="archive"
     >
-      Arxivlash
+      {{ t('product_form.archive') }}
     </button>
   </div>
 </template>

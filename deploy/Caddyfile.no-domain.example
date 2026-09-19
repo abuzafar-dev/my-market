@@ -1,0 +1,26 @@
+# No domain yet? Two ways to still get HTTPS (the camera scanner and the login
+# cookie both REQUIRE it). Pick ONE block, replace 203.0.113.5 with the server's
+# public IP, and put it in Caddy's config (/etc/caddy/Caddyfile).
+
+# --- A) Recommended: a real, free hostname made from the IP ------------------
+# sslip.io answers DNS for names like 203-0-113-5.sslip.io with 203.0.113.5, so
+# Caddy can get a genuine Let's Encrypt certificate: no browser warning, and the
+# app installs as a PWA. (Dots in the IP become dashes.) Needs ports 80 and 443
+# reachable from the internet and not used by another program.
+203-0-113-5.sslip.io {
+    encode gzip
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        -Server
+    }
+    reverse_proxy 127.0.0.1:8080
+}
+
+# --- B) Fallback: self-signed certificate on the bare IP ---------------------
+# Works without any DNS, but every browser shows a "not private" warning once
+# (Advanced -> Proceed), and the offline/PWA install feature is unavailable.
+# https://203.0.113.5 {
+#     tls internal
+#     encode gzip
+#     reverse_proxy 127.0.0.1:8080
+# }

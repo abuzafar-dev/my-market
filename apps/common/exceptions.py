@@ -62,6 +62,10 @@ def exception_handler(exc, context):
     if isinstance(detail, dict) and set(detail) == {"detail"}:
         fields = None
         message = _UZ_MESSAGES.get(code, str(detail["detail"]))
+        # A permission class / view can explain *why* (IsOwner.message, "only
+        # your own receipt"...) — keep that instead of the generic sentence.
+        if code == "permission_denied" and str(detail["detail"]) != str(exc.default_detail):
+            message = str(detail["detail"])
     elif isinstance(detail, dict):
         fields = {
             field: [str(item) for item in messages]

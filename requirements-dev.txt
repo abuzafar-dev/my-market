@@ -1,6 +1,13 @@
 -r requirements.txt
 
+# Dev-only: lets `runserver_plus --cert-file adhoc` serve HTTPS locally, so
+# camera/BarcodeDetector APIs (secure-context only) work from a phone on the LAN.
+django-extensions==4.1
+Werkzeug==3.1.8
+pyOpenSSL==26.4.0
+
 # Dev tooling: pre-commit hooks, secret scanning, lint/format
 pre-commit==4.6.2
 detect-secrets==1.5.0
 ruff==0.16.8
+pip-audit==2.10.1   # known-vulnerability scan: pip-audit -r requirements.txt

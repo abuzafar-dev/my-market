@@ -2,25 +2,30 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import LangSwitch from '@/components/LangSwitch.vue'
+import { t } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
+import { useToastStore } from '@/stores/toast'
+import { apiError } from '@/utils/errors'
 
 const phone = ref('')
 const password = ref('')
-const error = ref('')
 const loading = ref(false)
 
 const auth = useAuthStore()
+const toast = useToastStore()
 const router = useRouter()
 const route = useRoute()
 
 async function submit() {
-  error.value = ''
   loading.value = true
   try {
     await auth.login(phone.value, password.value)
-    router.push(route.query.next || { name: 'home' })
+    toast.clear() // drop an earlier "wrong password" toast
+    toast.success(t('login.welcome', { name: auth.user?.full_name ?? '' }))
+    router.push(route.query.next || { name: 'sale' })
   } catch (err) {
-    error.value = err.response?.data?.error?.message || 'Xatolik yuz berdi.'
+    toast.error(apiError(err))
   } finally {
     loading.value = false
   }
@@ -35,18 +40,13 @@ async function submit() {
     >
       <div>
         <h1 class="text-xl font-bold">Mening Bozorim</h1>
-        <p class="text-sm text-[var(--color-ink-soft)]">Do'kon boshqaruv tizimi</p>
+        <p class="text-sm text-[var(--color-ink-soft)]">{{ t('login.subtitle') }}</p>
       </div>
 
-      <p
-        v-if="error"
-        class="rounded-lg border border-[var(--color-danger)]/25 bg-[var(--color-danger-soft)] px-3 py-2 text-sm font-semibold text-[var(--color-danger)]"
-      >
-        {{ error }}
-      </p>
-
       <div>
-        <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]">Telefon</label>
+        <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]">
+          {{ t('login.phone') }}
+        </label>
         <input
           v-model="phone"
           type="tel"
@@ -58,7 +58,9 @@ async function submit() {
         />
       </div>
       <div>
-        <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]">Parol</label>
+        <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]">
+          {{ t('login.password') }}
+        </label>
         <input
           v-model="password"
           type="password"
@@ -73,8 +75,10 @@ async function submit() {
         :disabled="loading"
         class="w-full rounded-lg bg-[var(--color-ink)] py-3 font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
       >
-        {{ loading ? 'Yuklanmoqda...' : 'Kirish' }}
+        {{ loading ? t('common.loading') : t('login.submit') }}
       </button>
+
+      <LangSwitch />
     </form>
   </div>
 </template>

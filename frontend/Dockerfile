@@ -11,12 +11,14 @@ COPY . .
 # from docker-compose.yml or your CI build step.
 ARG VITE_API_URL
 ENV VITE_API_URL=${VITE_API_URL}
-RUN npm run build
+# Capped so the build cannot eat all the RAM of a small shared server.
+RUN NODE_OPTIONS=--max-old-space-size=768 npm run build
 
 
 FROM nginx:1.27-alpine AS runtime
 
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY security-headers.conf csp.conf /etc/nginx/
 
 EXPOSE 80

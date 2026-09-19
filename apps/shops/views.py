@@ -11,13 +11,15 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.common.permissions import IsOwner
 
+from .models import User
 from .serializers import (
     LoginSerializer,
     PasswordChangeSerializer,
@@ -36,7 +38,7 @@ def _set_refresh_cookie(response: Response, refresh: RefreshToken) -> None:
         max_age=int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()),
         path=REFRESH_COOKIE_PATH,
         httponly=True,
-        secure=not settings.DEBUG,
+        secure=settings.REFRESH_COOKIE_SECURE,
         samesite="Strict",
     )
 
@@ -49,7 +51,9 @@ class LoginView(APIView):
     """POST /api/auth/login/ — {phone, password} -> access token + user."""
 
     permission_classes = [AllowAny]
-    throttle_classes = [AnonRateThrottle]
+    # 10 attempts/min per address on top of the per-account lockout (security.py).
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
 
     def post(self, request: Request) -> Response:
         serializer = LoginSerializer(data=request.data, context={"request": request})
@@ -81,7 +85,27 @@ class RefreshView(APIView):
                 "invalid_refresh_token", "Sessiya muddati tugagan.", status.HTTP_401_UNAUTHORIZED
             )
 
-        response = Response({"access": str(refresh.access_token)})
+        # A hard page reload only has this cookie to go on — the frontend's
+        # in-memory `auth.user` (role, shop) is gone, so it has to come back
+        # here too, or the router's role guard treats every owner as a
+        # stranger and bounces them off every owner-only screen.
+        try:
+            user = User.objects.get(pk=refresh.payload["user_id"])
+        except User.DoesNotExist:
+            return _error(
+                "invalid_refresh_token", "Sessiya muddati tugagan.", status.HTTP_401_UNAUTHORIZED
+            )
+
+        # A deactivated account must not be able to keep minting tokens for
+        # the remaining life of its refresh cookie (30 days).
+        if not user.is_active:
+            return _error(
+                "invalid_refresh_token", "Sessiya muddati tugagan.", status.HTTP_401_UNAUTHORIZED
+            )
+
+        response = Response(
+            {"access": str(refresh.access_token), "user": UserSerializer(user).data}
+        )
 
         if settings.SIMPLE_JWT["ROTATE_REFRESH_TOKENS"]:
             if settings.SIMPLE_JWT["BLACKLIST_AFTER_ROTATION"]:
@@ -124,10 +148,18 @@ class PasswordChangeView(APIView):
         serializer = PasswordChangeSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
 
-        request.user.set_password(serializer.validated_data["new_password"])
-        request.user.save(update_fields=["password", "updated_at"])
+        user = request.user
+        user.set_password(serializer.validated_data["new_password"])
+        user.save(update_fields=["password", "updated_at"])
 
-        return Response({"detail": "Parol muvaffaqiyatli almashtirildi."})
+        # A changed password must cut off whoever had the old one: kill every
+        # refresh token this account ever got (a stolen cookie would otherwise
+        # keep working for its remaining 30 days) and hand this device a fresh one.
+        for outstanding in OutstandingToken.objects.filter(user=user):
+            BlacklistedToken.objects.get_or_create(token=outstanding)
+        response = Response({"detail": "Parol muvaffaqiyatli almashtirildi."})
+        _set_refresh_cookie(response, RefreshToken.for_user(user))
+        return response
 
 
 class SettingsView(APIView):
@@ -136,11 +168,11 @@ class SettingsView(APIView):
     permission_classes = [IsAuthenticated, IsOwner]
 
     def get(self, request: Request) -> Response:
-        return Response(ShopSettingsSerializer(request.user.shop.settings).data)
+        return Response(ShopSettingsSerializer(request.user.shop.get_settings()).data)
 
     def patch(self, request: Request) -> Response:
         serializer = ShopSettingsSerializer(
-            request.user.shop.settings, data=request.data, partial=True
+            request.user.shop.get_settings(), data=request.data, partial=True
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()

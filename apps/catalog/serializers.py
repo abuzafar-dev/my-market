@@ -3,6 +3,9 @@ from decimal import Decimal
 from django.utils import timezone
 from rest_framework import serializers
 
+from apps.common.limits import MAX_NOTE, MAX_PRICE, MAX_QTY
+from apps.shops.models import User
+
 from .exceptions import BarcodeConflict
 from .models import Batch, Category, Product, WriteOff
 from .services import batch_status, requires_whole_number
@@ -41,13 +44,47 @@ class ProductSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["is_active"]
 
+    def to_representation(self, instance):
+        # markup_pct is cost data in disguise (sale price = cost * (1 + markup)),
+        # so it follows the same rule as SaleItem.unit_cost: owner-only. The
+        # request is checked here because this serializer is also nested.
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        if request is not None and getattr(request.user, "role", None) != User.Role.OWNER:
+            data.pop("markup_pct", None)
+        return data
+
     def get_price(self, product: Product) -> int | None:
         """The price a sale would actually charge right now: the oldest
         (FIFO-head) batch's sale price. Different batches of the same
         product can carry different prices, so this is only a preview —
         the real price is always resolved server-side at checkout."""
+        if hasattr(product, "fifo_price"):  # annotated by with_price() on list screens
+            return product.fifo_price
         batch = product.batches.filter(qty_remaining__gt=0).order_by("received_at").first()
         return batch.sale_price if batch else None
+
+    ALLOWED_IMAGE_FORMATS = {"JPEG", "PNG", "WEBP"}
+    MAX_IMAGE_BYTES = 5 * 1024 * 1024
+    MAX_IMAGE_SIDE = 8000
+
+    def validate_image(self, image):
+        """Only real, reasonably small JPEG/PNG/WebP pictures. Pillow has already
+        opened the upload (ImageField), so SVG/HTML/scripts renamed to .jpg are
+        gone; here we cap the size and the pixel dimensions (decompression
+        bombs) and pin the format, because files are served back to browsers
+        from the site's own origin."""
+        if image is None:
+            return image
+        if image.size > self.MAX_IMAGE_BYTES:
+            raise serializers.ValidationError("Rasm juda katta (5 MB dan oshmasin).")
+        picture = getattr(image, "image", None)
+        if picture is not None:
+            if picture.format not in self.ALLOWED_IMAGE_FORMATS:
+                raise serializers.ValidationError("Faqat JPEG, PNG yoki WebP rasm mumkin.")
+            if max(picture.size) > self.MAX_IMAGE_SIDE:
+                raise serializers.ValidationError("Rasm o'lchami juda katta.")
+        return image
 
     def validate_category(self, category):
         if category and category.shop_id != self.context["request"].user.shop_id:
@@ -119,7 +156,9 @@ class BatchCreateSerializer(serializers.ModelSerializer):
             "received_at",
         ]
         extra_kwargs = {
-            "sale_price": {"required": False},
+            "sale_price": {"required": False, "max_value": MAX_PRICE},
+            "cost_price": {"max_value": MAX_PRICE},
+            "qty_initial": {"max_value": MAX_QTY},
             "received_at": {"required": False},
         }
 
@@ -135,6 +174,11 @@ class BatchCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"qty_initial": "Dona hisobidagi mahsulot uchun miqdor butun son bo'lishi kerak."}
             )
+        # The auto-calculated sale price (cost + markup) must stay in range too.
+        if product and "sale_price" not in attrs and "cost_price" in attrs:
+            auto_price = attrs["cost_price"] * (1 + product.markup_pct / Decimal("100"))
+            if auto_price > MAX_PRICE:
+                raise serializers.ValidationError({"cost_price": "Narx juda katta."})
         return attrs
 
     def create(self, validated_data):
@@ -160,9 +204,11 @@ class BatchCreateSerializer(serializers.ModelSerializer):
 
 
 class WriteOffInputSerializer(serializers.Serializer):
-    qty = serializers.DecimalField(max_digits=12, decimal_places=3, min_value=Decimal("0.001"))
+    qty = serializers.DecimalField(
+        max_digits=12, decimal_places=3, min_value=Decimal("0.001"), max_value=MAX_QTY
+    )
     reason = serializers.ChoiceField(choices=WriteOff.Reason.choices)
-    note = serializers.CharField(required=False, allow_blank=True, default="")
+    note = serializers.CharField(required=False, allow_blank=True, default="", max_length=MAX_NOTE)
 
 
 class WriteOffSerializer(serializers.ModelSerializer):

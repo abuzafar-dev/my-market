@@ -1,16 +1,20 @@
 """Business logic for products, stock, and batches (TZ v2 sections 3.6, 3.7, 7.1, 7.6, 7.7)."""
 
+import logging
 from datetime import date, timedelta
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import F, Q, QuerySet, Sum
+from django.db.models import F, OuterRef, QuerySet, Subquery, Sum
 from django.db.models.functions import Coalesce
 from django.http import Http404
+from django.utils import timezone
 
 from apps.shops.models import Shop, User
 
 from .models import Batch, Product, WriteOff
+
+logger = logging.getLogger(__name__)
 
 
 def requires_whole_number(unit: str, qty: Decimal) -> bool:
@@ -59,18 +63,58 @@ def batch_status(expires_at: date) -> str:
     return "expired" if expires_at < date.today() else "warning"
 
 
-def quick_products(shop: Shop, limit: int = 15) -> QuerySet[Product]:
-    """Best sellers for the quick-buttons panel (TZ v2 3.4)."""
-    return (
-        with_stock(Product.objects.filter(shop=shop, is_active=True))
-        .annotate(
-            sold_qty=Coalesce(
-                Sum("sale_items__qty", filter=Q(sale_items__sale__status="completed")),
-                Decimal("0"),
-            )
-        )
-        .order_by("-sold_qty", "name")[:limit]
+def with_price(queryset: QuerySet[Product]) -> QuerySet[Product]:
+    """Annotate each product with ``fifo_price``: the sale price of its oldest
+    batch that still has stock — what a sale would charge right now.
+
+    One correlated subquery instead of a query per product row (the list
+    screens show 20+ products at a time)."""
+    head_batch = (
+        Batch.objects.filter(product=OuterRef("pk"), qty_remaining__gt=0)
+        .order_by("received_at")
+        .values("sale_price")[:1]
     )
+    return queryset.annotate(fifo_price=Subquery(head_batch))
+
+
+QUICK_WINDOW_DAYS = 90
+
+
+def quick_products(shop: Shop, limit: int = 15) -> list[Product]:
+    """Best sellers of the last 90 days for the quick-buttons panel (TZ v2 3.4),
+    padded alphabetically when the shop has fewer than ``limit`` sellers.
+
+    The ranking is its own grouped query over recent sale lines. It used to be
+    a correlated subquery evaluated for every product, which scanned all sale
+    history per product — over a second on a shop with 8k products. Kept apart
+    from ``with_stock`` on purpose: joining ``sale_items`` next to the
+    ``batches`` join there multiplies rows and inflates ``stock``.
+    """
+    from apps.sales.models import SaleItem  # sales depends on catalog, not the reverse
+
+    since = timezone.now() - timedelta(days=QUICK_WINDOW_DAYS)
+    ranked_ids = [
+        row["product_id"]
+        for row in SaleItem.objects.filter(
+            sale__shop=shop, sale__status="completed", sale__sold_at__gte=since
+        )
+        .values("product_id")
+        .annotate(total=Sum("qty"))
+        .order_by("-total")[: limit * 3]
+    ]
+
+    def base() -> QuerySet[Product]:
+        return with_price(
+            with_stock(Product.objects.filter(shop=shop, is_active=True))
+        ).select_related("category")
+
+    by_id = {product.id: product for product in base().filter(id__in=ranked_ids)}
+    # Archived products can rank high; they just aren't in ``by_id``.
+    products = [by_id[pk] for pk in ranked_ids if pk in by_id][:limit]
+    if len(products) < limit:
+        taken = [product.id for product in products]
+        products += list(base().exclude(id__in=taken).order_by("name")[: limit - len(products)])
+    return products
 
 
 @transaction.atomic
@@ -89,7 +133,7 @@ def write_off_batch(
     batch.save(update_fields=["qty_remaining", "updated_at"])
     batch.refresh_from_db(fields=["qty_remaining"])
 
-    return WriteOff.objects.create(
+    write_off = WriteOff.objects.create(
         shop=shop,
         batch=batch,
         qty=qty,
@@ -98,3 +142,12 @@ def write_off_batch(
         note=note,
         created_by=user,
     )
+    logger.info(
+        "Write-off of %s from batch %s (%s, cost %s so'm) by user %s",
+        qty,
+        batch.id,
+        reason,
+        write_off.cost_total,
+        user.id,
+    )
+    return write_off

@@ -12,7 +12,8 @@ common issues) see [QOLLANMA.md](QOLLANMA.md).
 
 - **Backend** — Django 6 + Django REST Framework, JSON-only API (the
   Django admin at `/admin/` is the one exception that still renders
-  HTML). PostgreSQL in dev/prod, in-memory SQLite for tests.
+  HTML). PostgreSQL in dev/prod, in-memory SQLite for tests (CI); the
+  suite also passes on PostgreSQL.
   - `apps/shops` — JWT auth, shops, users (owner/seller roles), shop
     settings.
   - `apps/catalog` — products, categories, FIFO batches, write-offs.
@@ -20,11 +21,13 @@ common issues) see [QOLLANMA.md](QOLLANMA.md).
     cancellation.
   - `apps/debt` — customers and their debt ledger (debt/payment
     entries).
-  - `apps/reports` — dashboard, sales stats, CSV export.
+  - `apps/reports` — sales stats, per-day / per-hour breakdown, and
+    period reports as Excel (4 sheets) or CSV.
   - `apps/common` — shared response envelope, exception handling, the
     `IsOwner` permission class.
-- **Frontend** — Vue 3 + Pinia + Vite (`frontend/`), a separate SPA
-  that talks to the API over HTTP; Django never serves its HTML.
+- **Frontend** — Vue 3 + Pinia + Vite (`frontend/`), a PWA that talks to
+  the API over HTTP; Django never serves its HTML. Uzbek and Russian UI
+  (`frontend/src/i18n/`), switchable at runtime.
 
 Every API response is `{"data": ..., "error": ...}`; business logic
 lives in each app's `services.py`, not in views.
@@ -90,15 +93,45 @@ ruff automatically — install it once with `pre-commit install`.
 
 ## Running via Docker
 
+Demo on your machine, one command:
+
 ```bash
-cp .env.example .env   # fill in SECRET_KEY, POSTGRES_PASSWORD, etc.
-docker compose up --build
+./run.sh
 ```
 
-Brings up `db` (Postgres), `backend` (gunicorn against
-`config.settings.prod`, migrations run automatically on container
-start), and `frontend` (built static assets served by nginx). Backend
-on `:8000`, frontend on `:5173`.
+Generates `.env` (random `SECRET_KEY` / `POSTGRES_PASSWORD`) if it
+doesn't exist yet, then runs `docker compose up --build`. The site is at
+<http://localhost:8080> (nginx: the SPA, and a reverse proxy for `/api`,
+`/admin`, `/static`, `/media` — so the app is same-origin). The backend
+seeds a demo shop with 10 products because `run.sh` sets `SEED_DEMO=True`:
+
+| Phone | Password |
+|---|---|
+| `+998900000001` | `demo12345` |
+
+A **real server** does not use `run.sh`: it uses
+`deploy/env.production.example`, keeps `SEED_DEMO=False`, creates its shop
+with `manage.py create_shop`, and puts Caddy (`deploy/Caddyfile.example`)
+in front for HTTPS. The exact, step-by-step procedure (Docker, `.env`,
+HTTPS, first owner, backups, updates) is in [QOLLANMA.md](QOLLANMA.md).
 
 `scripts/export-clean.sh` produces a shareable archive via `git
 archive`, so gitignored secrets never end up in an ad-hoc export.
+
+## Security
+
+Covered by 33 dedicated tests (`apps/common/test_security.py`): per-shop data
+isolation on every endpoint, login lockout (per address + per phone, shared by
+all workers, also for the admin), session revocation on password change /
+logout, rate limits, input bounds, spreadsheet-formula and upload hardening.
+Production defaults: Django admin and API docs off, no CORS, strict CSP with
+self-hosted fonts, HSTS, secure cookies, containers without extra privileges.
+Details and the server checklist: [QOLLANMA.md §8](QOLLANMA.md#8-xavfsizlik).
+
+## Capacity
+
+Load-tested on PostgreSQL with 8,000 products, 60,000 sales (180,000
+lines) and 1,500 customers: product list ~30 ms, search 7–20 ms,
+checkout ~16 ms, reports 55–90 ms; 30 concurrent cashiers never oversell
+a batch and a retried request never double-sells (see QOLLANMA.md §5).
+List endpoints accept `?page_size=` (max 100).

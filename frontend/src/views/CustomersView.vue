@@ -3,22 +3,28 @@ import { onMounted, ref } from 'vue'
 
 import api from '@/api/client'
 import Icon from '@/components/Icon.vue'
+import LoadMore from '@/components/LoadMore.vue'
+import PageTitle from '@/components/PageTitle.vue'
+import { t } from '@/i18n'
+import { useToastStore } from '@/stores/toast'
 import { formatMoney } from '@/utils/format'
+import { apiError } from '@/utils/errors'
+import { usePagedList } from '@/utils/paged'
 
-const customers = ref([])
-const loading = ref(true)
+const toast = useToastStore()
 const search = ref('')
 const showNew = ref(false)
 const newCustomer = ref({ full_name: '', phone: '' })
 
-async function load() {
-  loading.value = true
-  const response = await api.get('/customers/', {
-    params: search.value ? { q: search.value } : {},
-  })
-  customers.value = response.data.data.results ?? response.data.data
-  loading.value = false
-}
+const {
+  items: customers,
+  total,
+  loading,
+  loadingMore,
+  hasMore,
+  load,
+  more,
+} = usePagedList('/customers/', () => ({ q: search.value || undefined }))
 onMounted(load)
 
 let searchTimeout = null
@@ -28,26 +34,34 @@ function onSearch() {
 }
 
 async function createCustomer() {
-  await api.post('/customers/', newCustomer.value)
-  newCustomer.value = { full_name: '', phone: '' }
-  showNew.value = false
-  await load()
+  try {
+    await api.post('/customers/', newCustomer.value)
+    toast.success(t('debt.customer_created'))
+    newCustomer.value = { full_name: '', phone: '' }
+    showNew.value = false
+    await load()
+  } catch (err) {
+    toast.error(apiError(err))
+  }
 }
 </script>
 
 <template>
   <div class="mx-auto w-full max-w-3xl px-4 py-6 md:px-10 md:py-10">
-    <div class="mb-5 flex items-center justify-between">
-      <h1 class="text-2xl font-bold">Qarzdorlar</h1>
+    <PageTitle
+      icon="ledger"
+      :title="t('debt.title')"
+      :subtitle="loading ? '' : t('common.shown', { n: customers.length, total })"
+    >
       <button
         type="button"
         class="flex items-center gap-1.5 rounded-lg bg-[var(--color-ink)] px-4 py-2.5 text-sm font-bold text-white transition active:scale-[0.98]"
         @click="showNew = !showNew"
       >
         <Icon name="plus" :size="17" />
-        Mijoz
+        {{ t('debt.customer') }}
       </button>
-    </div>
+    </PageTitle>
 
     <form
       v-if="showNew"
@@ -56,20 +70,20 @@ async function createCustomer() {
     >
       <input
         v-model="newCustomer.full_name"
-        placeholder="F.I.Sh."
+        :placeholder="t('debt.full_name')"
         required
         class="w-full rounded-lg border border-[var(--color-line)] px-3 py-2.5"
       />
       <input
         v-model="newCustomer.phone"
-        placeholder="Telefon"
+        :placeholder="t('debt.phone')"
         class="w-full rounded-lg border border-[var(--color-line)] px-3 py-2.5"
       />
       <button
         type="submit"
         class="w-full rounded-lg bg-[var(--color-ink)] py-2.5 font-bold text-white"
       >
-        Saqlash
+        {{ t('common.save') }}
       </button>
     </form>
 
@@ -82,7 +96,7 @@ async function createCustomer() {
       <input
         v-model="search"
         type="search"
-        placeholder="Qidirish..."
+        :placeholder="t('common.search')"
         class="w-full rounded-lg border border-[var(--color-line)] py-2.5 pl-10 pr-3"
         @input="onSearch"
       />
@@ -106,9 +120,15 @@ async function createCustomer() {
         :to="{ name: 'customer-detail', params: { id: customer.id } }"
         class="flex items-center justify-between border-b border-[var(--color-line)] p-4 last:border-0 hover:bg-[var(--color-paper)]"
       >
-        <div>
-          <p class="font-semibold">{{ customer.full_name }}</p>
-          <p class="text-xs text-[var(--color-ink-soft)]">{{ customer.phone }}</p>
+        <div class="min-w-0 leading-tight">
+          <p class="truncate font-semibold">{{ customer.full_name }}</p>
+          <p
+            v-if="customer.phone"
+            class="flex items-center gap-1 font-mono text-[11px] text-[var(--color-ink-soft)]"
+          >
+            <Icon name="phone" :size="11" />
+            {{ customer.phone }}
+          </p>
         </div>
         <span
           class="font-mono font-bold"
@@ -120,8 +140,9 @@ async function createCustomer() {
         </span>
       </RouterLink>
       <p v-if="!customers.length" class="p-8 text-center text-[var(--color-ink-soft)]">
-        Mijoz topilmadi
+        {{ t('debt.none') }}
       </p>
     </div>
+    <LoadMore v-if="!loading && hasMore" :loading="loadingMore" @more="more" />
   </div>
 </template>

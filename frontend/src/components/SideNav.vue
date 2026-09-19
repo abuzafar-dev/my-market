@@ -1,26 +1,29 @@
 <script setup>
 import { computed } from 'vue'
 
-import Icon from '@/components/Icon.vue'
-import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 
+import Icon from '@/components/Icon.vue'
+import { t } from '@/i18n'
+import { useAuthStore } from '@/stores/auth'
+import { useToastStore } from '@/stores/toast'
+
 const allTabs = [
-  { name: 'home', label: 'Bosh sahifa', icon: 'home' },
-  { name: 'sale', label: 'Sotuv', icon: 'cart' },
-  { name: 'customers', label: 'Qarz', icon: 'ledger' },
-  { name: 'products', label: 'Mahsulot', icon: 'box' },
-  { name: 'reports', label: 'Hisobot', icon: 'chart', role: 'owner' },
+  { name: 'sale', label: 'nav.sale', icon: 'cart' },
+  { name: 'customers', label: 'nav.debt', icon: 'ledger' },
+  { name: 'products', label: 'nav.products', icon: 'box' },
+  { name: 'reports', label: 'nav.reports', icon: 'chart', role: 'owner' },
 ]
 
 const auth = useAuthStore()
 const router = useRouter()
-// Reports/Settings are owner-only (permissions matrix, P1) — hidden for sellers.
+// Reports is owner-only (permissions matrix, P1) — hidden for sellers.
+// Profile settings (language, password, logout) are for everyone.
 const tabs = computed(() => allTabs.filter((tab) => !tab.role || auth.user?.role === tab.role))
-const isOwner = computed(() => auth.user?.role === 'owner')
 
 async function logout() {
   await auth.logout()
+  useToastStore().info(t('settings.logged_out'))
   router.push({ name: 'login' })
 }
 </script>
@@ -31,7 +34,7 @@ async function logout() {
   >
     <div class="px-6 py-6">
       <p class="text-lg font-bold leading-tight">Mening Bozorim</p>
-      <p class="text-xs text-[var(--color-ink-soft)]">Do'kon boshqaruvi</p>
+      <p class="text-xs text-[var(--color-ink-soft)]">{{ t('nav.tagline') }}</p>
     </div>
 
     <nav class="flex flex-1 flex-col gap-1 px-3">
@@ -43,19 +46,18 @@ async function logout() {
         active-class="bg-[var(--color-accent-soft)]! text-[var(--color-accent)]!"
       >
         <Icon :name="tab.icon" :size="20" />
-        {{ tab.label }}
+        {{ t(tab.label) }}
       </RouterLink>
     </nav>
 
     <div class="flex flex-col gap-1 border-t border-[var(--color-line)] px-3 py-3">
       <RouterLink
-        v-if="isOwner"
         :to="{ name: 'settings' }"
         class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-[var(--color-ink-soft)] transition-colors hover:bg-[var(--color-paper)]"
         active-class="bg-[var(--color-accent-soft)]! text-[var(--color-accent)]!"
       >
         <Icon name="gear" :size="20" />
-        Sozlamalar
+        {{ t('nav.settings') }}
       </RouterLink>
       <button
         type="button"
@@ -63,7 +65,7 @@ async function logout() {
         @click="logout"
       >
         <Icon name="log-out" :size="20" />
-        Chiqish
+        {{ t('nav.logout') }}
       </button>
     </div>
   </aside>

@@ -148,3 +148,146 @@ class BarcodeSerializerTests(CatalogTestCase):
 
     def test_barcode_with_surrounding_whitespace_is_trimmed(self):
         self.assertEqual(self._serializer().validate_barcode("  123456  "), "123456")
+
+
+class QuickProductsStockTests(CatalogTestCase):
+    """Regression: joining sale_items next to batches multiplied `stock`
+    (2 batches x 3 sales showed 3x the real stock on the sale screen)."""
+
+    def sell(self, qty):
+        from uuid import uuid4
+
+        from apps.sales.models import Sale
+        from apps.sales.services import CartLine, create_sale
+
+        return create_sale(
+            shop=self.shop,
+            user=self.user,
+            client_id=uuid4(),
+            payment_type=Sale.PaymentType.CASH,
+            customer=None,
+            cart=[CartLine(product=self.product, qty=Decimal(qty))],
+        )
+
+    def stock_on_quick_tile(self):
+        from apps.catalog.services import quick_products
+
+        return next(p for p in quick_products(self.shop) if p.pk == self.product.pk).stock
+
+    def test_stock_is_not_multiplied_by_the_number_of_sales(self):
+        self.make_batch(qty=Decimal("10"))
+        self.make_batch(qty=Decimal("10"))
+        for _ in range(3):
+            self.sell("1")
+
+        self.assertEqual(self.stock_on_quick_tile(), Decimal("17"))
+
+    def test_quick_tile_stock_matches_the_regular_product_list(self):
+        self.make_batch(qty=Decimal("10"))
+        self.make_batch(qty=Decimal("4"))
+        self.sell("2")
+        self.sell("3")
+
+        regular = with_stock(Product.objects.filter(pk=self.product.pk)).get().stock
+
+        self.assertEqual(self.stock_on_quick_tile(), regular)
+
+    def test_best_sellers_come_first_and_cancelled_sales_do_not_count(self):
+        from apps.catalog.services import quick_products
+        from apps.sales.services import cancel_sale
+
+        other = Product.objects.create(
+            shop=self.shop,
+            name="Aaa",
+            unit="piece",
+            markup_pct=Decimal("10"),
+            min_stock=Decimal("1"),
+        )
+        self.make_batch(qty=Decimal("50"))
+        self.sell("5")
+        cancel_sale(self.sell("40"), self.user)  # must not make it a best seller
+
+        names = [p.name for p in quick_products(self.shop)]
+
+        self.assertEqual(names, ["Suv", "Aaa"])
+        self.assertEqual(other.name, "Aaa")
+
+
+class ProductImageUploadTests(CatalogTestCase):
+    """Photo upload goes over multipart/form-data. The frontend now sends a
+    small JPEG made in the browser, so HEIC/oversized camera files never reach
+    the server — but the API contract is pinned here."""
+
+    def setUp(self):
+        super().setUp()
+        import shutil
+        import tempfile
+
+        from django.test import override_settings
+        from rest_framework.test import APIClient
+
+        self.media = tempfile.mkdtemp()  # never write test photos into the real media/
+        override = override_settings(MEDIA_ROOT=self.media)
+        override.enable()
+        self.addCleanup(override.disable)
+        self.addCleanup(shutil.rmtree, self.media, ignore_errors=True)
+
+        self.client = APIClient()
+        self.client.force_authenticate(self.user)
+
+    def jpeg(self, name="photo.jpg", size=(64, 48)):
+        from io import BytesIO
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+
+        buffer = BytesIO()
+        Image.new("RGB", size, (200, 80, 60)).save(buffer, "JPEG")
+        return SimpleUploadedFile(name, buffer.getvalue(), content_type="image/jpeg")
+
+    def form(self, **extra):
+        return {"name": "Rasmli", "unit": "kg", "markup_pct": "20", "min_stock": "1", **extra}
+
+    def test_product_can_be_created_with_a_photo(self):
+        response = self.client.post(
+            "/api/products/", self.form(image=self.jpeg()), format="multipart"
+        )
+
+        self.assertEqual(response.status_code, 201)
+        image_url = response.json()["data"]["image"]
+        self.assertTrue(image_url.endswith(".jpg"))
+        self.assertTrue(
+            Product.objects.get(name="Rasmli").image.storage.exists(
+                Product.objects.get(name="Rasmli").image.name
+            )
+        )
+
+    def test_photo_can_be_replaced_on_an_existing_product(self):
+        response = self.client.patch(
+            f"/api/products/{self.product.id}/", {"image": self.jpeg("new.jpg")}, format="multipart"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.product.refresh_from_db()
+        self.assertTrue(self.product.image.name.startswith("products/new"))
+
+    def test_product_without_a_photo_still_works_as_plain_json(self):
+        response = self.client.post("/api/products/", self.form(), format="json")
+
+        self.assertEqual(response.status_code, 201)
+        self.assertFalse(response.json()["data"]["image"])
+
+    def test_file_that_is_not_a_readable_image_is_a_clear_400(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        heic_like = SimpleUploadedFile(
+            "IMG_1.heic", b"\x00\x00\x00\x18ftypheic" + b"x" * 500, "image/heic"
+        )
+
+        response = self.client.post(
+            "/api/products/", self.form(image=heic_like), format="multipart"
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("image", response.json()["error"]["fields"])
+        self.assertFalse(Product.objects.filter(name="Rasmli").exists())

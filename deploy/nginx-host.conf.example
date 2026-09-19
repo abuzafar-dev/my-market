@@ -1,0 +1,31 @@
+# For a server where nginx ALREADY runs on the host and owns ports 80/443 (other
+# projects live behind it). Add this as a new site; do not touch the others.
+#
+#   sudo cp deploy/nginx-host.conf.example /etc/nginx/sites-available/my-market
+#   sudo nano /etc/nginx/sites-available/my-market      # set the hostname
+#   sudo ln -s /etc/nginx/sites-available/my-market /etc/nginx/sites-enabled/
+#   sudo nginx -t && sudo systemctl reload nginx
+#   sudo certbot --nginx -d 203-0-113-5.sslip.io        # free HTTPS certificate
+#
+# The hostname: your real domain, or (no domain) the IP with dashes + .sslip.io.
+server {
+    listen 80;
+    server_name 203-0-113-5.sslip.io;
+
+    client_max_body_size 12m;
+    server_tokens off;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        # Appends the visitor's address: with our own nginx behind it that makes
+        # the two proxies NUM_PROXIES=2 counts.
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+}
+# After `certbot --nginx` this block gains the `listen 443 ssl` + certificate
+# lines and an automatic redirect from HTTP; add to the 443 block:
+#   add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;

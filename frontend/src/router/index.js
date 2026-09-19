@@ -6,7 +6,8 @@ import { useAuthStore } from '@/stores/auth'
 // shows on all of these except login, so none of them is a dead end.
 const routes = [
   { path: '/login', name: 'login', component: () => import('@/views/LoginView.vue') },
-  { path: '/', name: 'home', component: () => import('@/views/HomeView.vue') },
+  // Sales is the landing screen; there is no separate home page.
+  { path: '/', redirect: { name: 'sale' } },
   { path: '/sotuv', name: 'sale', component: () => import('@/views/SaleView.vue') },
   {
     path: '/chek/:id',
@@ -14,7 +15,21 @@ const routes = [
     component: () => import('@/views/ReceiptView.vue'),
     props: true,
   },
-  { path: '/mahsulotlar', name: 'products', component: () => import('@/views/ProductsView.vue') },
+  {
+    path: '/mahsulotlar',
+    name: 'products',
+    component: () => import('@/views/ProductsView.vue'),
+    // Shown as the header's primary button (sm and up); phones keep the
+    // page's own "Yangi" button.
+    meta: {
+      headerAction: {
+        labelKey: 'nav.new_product',
+        icon: 'plus',
+        to: { name: 'product-new' },
+        role: 'owner',
+      },
+    },
+  },
   {
     path: '/mahsulotlar/yangi',
     name: 'product-new',
@@ -51,7 +66,6 @@ const routes = [
     path: '/sozlamalar',
     name: 'settings',
     component: () => import('@/views/SettingsView.vue'),
-    meta: { role: 'owner' },
   },
 ]
 
@@ -66,10 +80,10 @@ router.beforeEach((to) => {
     return { name: 'login', query: { next: to.fullPath } }
   }
   if (to.name === 'login' && auth.isAuthenticated) {
-    return { name: 'home' }
+    return { name: 'sale' }
   }
   if (to.meta.role && auth.user?.role !== to.meta.role) {
-    return { name: 'home' }
+    return { name: 'sale' }
   }
   return true
 })

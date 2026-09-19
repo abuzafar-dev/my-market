@@ -11,23 +11,33 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from apps.common.views import healthz
 from apps.shops.views import SettingsView
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
+    path("healthz/", healthz, name="healthz"),
     path("api/auth/", include("apps.shops.urls")),
     path("api/settings/", SettingsView.as_view(), name="settings"),
     path("api/", include("apps.catalog.urls")),
     path("api/", include("apps.sales.urls")),
     path("api/", include("apps.debt.urls")),
     path("api/", include("apps.reports.urls")),
-    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
-    path(
-        "api/schema/swagger-ui/",
-        SpectacularSwaggerView.as_view(url_name="schema"),
-        name="swagger-ui",
-    ),
 ]
+
+if settings.ADMIN_ENABLED:
+    urlpatterns.append(path("admin/", admin.site.urls))
+
+if settings.DEBUG:
+    # API docs describe every endpoint — handy while developing, not something to
+    # publish on a live server.
+    urlpatterns += [
+        path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+        path(
+            "api/schema/swagger-ui/",
+            SpectacularSwaggerView.as_view(url_name="schema"),
+            name="swagger-ui",
+        ),
+    ]
 
 if settings.DEBUG:
     # Product photos: served by nginx/whitenoise-equivalent in production,

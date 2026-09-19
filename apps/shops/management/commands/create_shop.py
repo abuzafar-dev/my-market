@@ -9,6 +9,9 @@ import string
 from argparse import ArgumentParser
 from typing import Any
 
+from django.conf import settings
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
@@ -27,6 +30,10 @@ class Command(BaseCommand):
         parser.add_argument("--shop-name", required=True, help="Do'kon nomi")
         parser.add_argument("--phone", required=True, help="Egasining telefon raqami")
         parser.add_argument("--full-name", required=True, help="Egasining to'liq ismi")
+        parser.add_argument(
+            "--password",
+            help="Egasining paroli (bermasangiz, tasodifiy vaqtinchalik parol yaratiladi)",
+        )
 
     def handle(self, *args: Any, **options: Any) -> None:
         shop_name: str = options["shop_name"]
@@ -36,7 +43,13 @@ class Command(BaseCommand):
         if User.objects.filter(phone=phone).exists():
             raise CommandError(f"'{phone}' raqami bilan foydalanuvchi allaqachon mavjud.")
 
-        password = _generate_password()
+        given_password: str | None = options.get("password")
+        if given_password and not settings.DEBUG:  # a real server gets a real password
+            try:
+                validate_password(given_password)
+            except ValidationError as exc:
+                raise CommandError("Parol yaroqsiz: " + " ".join(exc.messages)) from None
+        password = given_password or _generate_password()
 
         with transaction.atomic():
             shop = Shop.objects.create(name=shop_name)
@@ -52,10 +65,13 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(f"Do'kon yaratildi: {shop_name}"))
         self.stdout.write(f"Egasi: {full_name} ({phone})")
-        self.stdout.write(self.style.WARNING(f"Vaqtinchalik parol: {password}"))
-        self.stdout.write(
-            self.style.WARNING(
-                "Diqqat: bu parol faqat shu yerda ko'rsatiladi — "
-                "birinchi kirishda uni albatta almashtiring."
+        if given_password:
+            self.stdout.write("Parol: siz bergan parol o'rnatildi.")
+        else:
+            self.stdout.write(self.style.WARNING(f"Vaqtinchalik parol: {password}"))
+            self.stdout.write(
+                self.style.WARNING(
+                    "Diqqat: bu parol faqat shu yerda ko'rsatiladi — "
+                    "birinchi kirishda uni albatta almashtiring."
+                )
             )
-        )

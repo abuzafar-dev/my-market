@@ -1,5 +1,6 @@
 """FIFO sale processing (TZ v2 3.3, 7.2–7.4)."""
 
+import logging
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -12,6 +13,8 @@ from apps.debt.models import Customer, DebtEntry
 from apps.shops.models import Shop, User
 
 from .models import Sale, SaleItem
+
+logger = logging.getLogger(__name__)
 
 
 class InsufficientStock(Exception):
@@ -125,6 +128,17 @@ def create_sale(
     return sale
 
 
+def can_cancel_sale(user: User, sale: Sale) -> bool:
+    """Who may cancel a receipt.
+
+    Owner: any sale. Seller: only one they rang up themselves, and only on
+    the day it was made (shop-local date) — enough to fix a checkout mistake
+    at the counter, not to rewrite earlier days or a colleague's sales."""
+    if user.role == User.Role.OWNER:
+        return True
+    return sale.sold_by_id == user.id and timezone.localdate(sale.sold_at) == timezone.localdate()
+
+
 @transaction.atomic
 def cancel_sale(sale: Sale, user: User) -> Sale:
     # Re-fetch under a row lock instead of trusting the instance the view
@@ -154,4 +168,7 @@ def cancel_sale(sale: Sale, user: User) -> Sale:
     sale.status = Sale.Status.CANCELLED
     sale.cancelled_at = timezone.now()
     sale.save(update_fields=["status", "cancelled_at", "updated_at"])
+    logger.info(
+        "Sale %s (%s so'm) cancelled by user %s (%s)", sale.id, sale.total, user.id, user.role
+    )
     return sale

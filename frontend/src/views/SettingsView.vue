@@ -1,133 +1,244 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import api from '@/api/client'
+import FieldLabel from '@/components/FieldLabel.vue'
 import Icon from '@/components/Icon.vue'
+import InfoHint from '@/components/InfoHint.vue'
+import LangSwitch from '@/components/LangSwitch.vue'
+import PageTitle from '@/components/PageTitle.vue'
+import SectionCard from '@/components/SectionCard.vue'
+import { t } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
+import { useToastStore } from '@/stores/toast'
+import { apiError } from '@/utils/errors'
 
 const router = useRouter()
 const auth = useAuthStore()
+const toast = useToastStore()
 
+const isOwner = computed(() => auth.user?.role === 'owner')
+const roleLabel = computed(() =>
+  t(`header.role_${auth.user?.role === 'owner' ? 'owner' : 'seller'}`),
+)
+const initials = computed(() =>
+  (auth.user?.full_name ?? '')
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase(),
+)
+
+// Shop settings (expiry window) exist only for the owner — the endpoint is
+// owner-only, so a seller never even requests it.
 const settings = ref({ expiry_warn_days: 7, currency: 'UZS' })
-const savedMessage = ref('')
+const savingSettings = ref(false)
 
 onMounted(async () => {
-  const response = await api.get('/settings/')
-  settings.value = response.data.data
+  if (!isOwner.value) return
+  try {
+    const response = await api.get('/settings/')
+    settings.value = response.data.data
+  } catch {
+    toast.error(t('common.error'))
+  }
 })
 
 async function save() {
-  savedMessage.value = ''
-  const response = await api.patch('/settings/', settings.value)
-  settings.value = response.data.data
-  savedMessage.value = 'Saqlandi.'
+  savingSettings.value = true
+  try {
+    const response = await api.patch('/settings/', settings.value)
+    settings.value = response.data.data
+    toast.success(t('settings.saved'))
+  } catch (err) {
+    toast.error(apiError(err))
+  } finally {
+    savingSettings.value = false
+  }
 }
 
 const oldPassword = ref('')
 const newPassword = ref('')
-const passwordError = ref('')
-const passwordSuccess = ref('')
+const changingPassword = ref(false)
 
 async function changePassword() {
-  passwordError.value = ''
-  passwordSuccess.value = ''
+  changingPassword.value = true
   try {
     await auth.changePassword(oldPassword.value, newPassword.value)
-    passwordSuccess.value = 'Parol almashtirildi.'
+    toast.success(t('settings.password_changed'))
     oldPassword.value = ''
     newPassword.value = ''
   } catch (err) {
-    passwordError.value = err.response?.data?.error?.message || 'Xatolik yuz berdi.'
+    toast.error(apiError(err))
+  } finally {
+    changingPassword.value = false
   }
 }
 
+const loggingOut = ref(false)
 async function logout() {
+  loggingOut.value = true
   await auth.logout()
+  toast.info(t('settings.logged_out'))
   router.push({ name: 'login' })
 }
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-md px-4 py-6 md:px-10 md:py-10">
+  <div class="mx-auto w-full max-w-md px-4 py-5 md:px-10 md:py-8">
     <button
       type="button"
-      class="mb-4 flex items-center gap-1.5 text-sm font-semibold text-[var(--color-ink-soft)]"
+      class="mb-3 flex items-center gap-1.5 text-sm font-semibold text-[var(--color-ink-soft)]"
       @click="router.back()"
     >
       <Icon name="arrow-left" :size="16" />
-      Orqaga
+      {{ t('common.back') }}
     </button>
-    <h1 class="mb-4 text-xl font-bold">Sozlamalar</h1>
+    <PageTitle icon="gear" :title="t('settings.title')" />
 
-    <div
-      class="mb-4 space-y-3 rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5"
-    >
-      <div>
-        <label class="mb-1 block text-sm font-semibold text-[var(--color-ink-soft)]">
-          Ogohlantirish chegarasi (kun)
-        </label>
-        <input
-          v-model.number="settings.expiry_warn_days"
-          type="number"
-          class="w-full rounded-lg border border-[var(--color-line)] px-3 py-2.5"
-        />
-      </div>
-      <p v-if="savedMessage" class="text-sm font-semibold text-[var(--color-accent)]">
-        {{ savedMessage }}
-      </p>
+    <div class="space-y-3">
+      <!-- Profile -->
+      <SectionCard class="rise" style="--i: 0">
+        <div class="flex items-center gap-3">
+          <span
+            class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-teal-200 bg-teal-100 text-base font-bold text-teal-700"
+          >
+            {{ initials }}
+          </span>
+          <div class="min-w-0 flex-1 leading-tight">
+            <p class="truncate font-bold">{{ auth.user?.full_name }}</p>
+            <p
+              class="flex items-center gap-1 truncate font-mono text-xs text-[var(--color-ink-soft)]"
+            >
+              <Icon name="phone" :size="12" />
+              {{ auth.user?.phone }}
+            </p>
+            <p class="mt-1 flex flex-wrap items-center gap-1.5">
+              <span
+                class="rounded-full bg-[var(--color-accent-soft)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--color-accent)]"
+              >
+                {{ roleLabel }}
+              </span>
+              <span
+                v-if="auth.user?.shop_name"
+                class="flex items-center gap-1 truncate text-[11px] text-[var(--color-ink-soft)]"
+              >
+                <Icon name="store" :size="12" />
+                {{ auth.user.shop_name }}
+              </span>
+            </p>
+          </div>
+        </div>
+      </SectionCard>
+
+      <!-- Language -->
+      <SectionCard
+        class="rise"
+        style="--i: 1"
+        icon="globe"
+        :title="t('settings.language')"
+        :subtitle="t('settings.language_hint')"
+      >
+        <LangSwitch />
+      </SectionCard>
+
+      <!-- Shop settings (owner) -->
+      <SectionCard
+        v-if="isOwner"
+        class="rise"
+        style="--i: 2"
+        icon="store"
+        :title="t('settings.shop_settings')"
+      >
+        <div class="space-y-2.5">
+          <div>
+            <FieldLabel icon="clock">{{ t('settings.expiry') }}</FieldLabel>
+            <input
+              v-model.number="settings.expiry_warn_days"
+              type="number"
+              min="1"
+              class="w-full rounded-lg border border-[var(--color-line)] px-3 py-2.5"
+            />
+            <InfoHint class="mt-1">{{ t('settings.expiry_hint') }}</InfoHint>
+          </div>
+          <button
+            type="button"
+            :disabled="savingSettings"
+            class="flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--color-ink)] py-2.5 font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+            @click="save"
+          >
+            <Icon name="check" :size="17" />
+            {{ savingSettings ? t('common.loading') : t('common.save') }}
+          </button>
+        </div>
+      </SectionCard>
+
+      <!-- Password -->
+      <SectionCard class="rise" style="--i: 3" icon="lock" :title="t('settings.password')">
+        <form class="space-y-2" @submit.prevent="changePassword">
+          <input
+            v-model="oldPassword"
+            type="password"
+            autocomplete="current-password"
+            :placeholder="t('settings.old_password')"
+            required
+            class="w-full rounded-lg border border-[var(--color-line)] px-3 py-2.5"
+          />
+          <input
+            v-model="newPassword"
+            type="password"
+            autocomplete="new-password"
+            :placeholder="t('settings.new_password')"
+            required
+            class="w-full rounded-lg border border-[var(--color-line)] px-3 py-2.5"
+          />
+          <button
+            type="submit"
+            :disabled="changingPassword"
+            class="flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--color-ink)] py-2.5 font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+          >
+            <Icon name="key" :size="17" />
+            {{ changingPassword ? t('common.loading') : t('settings.change') }}
+          </button>
+        </form>
+      </SectionCard>
+
+      <!-- Logout -->
       <button
         type="button"
-        class="w-full rounded-lg bg-[var(--color-ink)] py-3 font-bold text-white transition active:scale-[0.98]"
-        @click="save"
+        :disabled="loggingOut"
+        class="rise flex w-full items-center gap-3 rounded-2xl border border-[var(--color-danger)]/25 bg-[var(--color-danger-soft)] p-3 text-left text-[var(--color-danger)] transition active:scale-[0.99] disabled:opacity-50"
+        style="--i: 4"
+        @click="logout"
       >
-        Saqlash
+        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white">
+          <Icon name="log-out" :size="16" />
+        </span>
+        <span class="min-w-0 leading-tight">
+          <span class="block text-sm font-bold">{{ t('settings.logout') }}</span>
+          <span class="block text-[11px] opacity-80">{{ t('settings.logout_hint') }}</span>
+        </span>
       </button>
     </div>
-
-    <form
-      class="mb-4 space-y-3 rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5"
-      @submit.prevent="changePassword"
-    >
-      <p class="font-bold">Parolni o'zgartirish</p>
-      <p
-        v-if="passwordError"
-        class="rounded-lg border border-[var(--color-danger)]/25 bg-[var(--color-danger-soft)] px-3 py-2 text-sm font-semibold text-[var(--color-danger)]"
-      >
-        {{ passwordError }}
-      </p>
-      <p v-if="passwordSuccess" class="text-sm font-semibold text-[var(--color-accent)]">
-        {{ passwordSuccess }}
-      </p>
-      <input
-        v-model="oldPassword"
-        type="password"
-        placeholder="Joriy parol"
-        required
-        class="w-full rounded-lg border border-[var(--color-line)] px-3 py-2.5"
-      />
-      <input
-        v-model="newPassword"
-        type="password"
-        placeholder="Yangi parol"
-        required
-        class="w-full rounded-lg border border-[var(--color-line)] px-3 py-2.5"
-      />
-      <button
-        type="submit"
-        class="w-full rounded-lg bg-[var(--color-ink)] py-3 font-bold text-white transition active:scale-[0.98]"
-      >
-        Almashtirish
-      </button>
-    </form>
-
-    <button
-      type="button"
-      class="flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--color-danger)]/25 bg-[var(--color-danger-soft)] py-3 font-bold text-[var(--color-danger)]"
-      @click="logout"
-    >
-      <Icon name="log-out" :size="18" />
-      Chiqish
-    </button>
   </div>
 </template>
+
+<style scoped>
+.rise {
+  animation: rise 480ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.6rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+</style>

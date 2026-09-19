@@ -1,6 +1,14 @@
+name: my-market  # fixed, so it never clashes with another project's compose stack
+
+# Whole stack on one machine: PostgreSQL + Django (gunicorn) + nginx (SPA and
+# reverse proxy). Only nginx is published, on WEB_BIND:WEB_PORT — by default
+# 127.0.0.1:8080, so put a TLS proxy (Caddy, see deploy/Caddyfile.example) in
+# front of it, or set WEB_BIND=0.0.0.0 for a plain-HTTP test.
 services:
   db:
     image: postgres:17-alpine
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-my_market_db}
       POSTGRES_USER: ${POSTGRES_USER:-my_market_user}
@@ -17,30 +25,49 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     env_file: .env
     environment:
       # Container-networking values that must differ from the host-based
       # dev workflow's .env (see .env.example) — override rather than
       # trust what's in the file.
       DATABASE_URL: postgresql://${POSTGRES_USER:-my_market_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-my_market_db}
+      # nginx (same compose) is the proxy in front of gunicorn.
+      BEHIND_PROXY: "True"
+      # Proxies in front of gunicorn (Caddy + nginx). Needed so rate limits and
+      # the login lockout see the real visitor address, not the proxy's.
+      NUM_PROXIES: ${NUM_PROXIES:-2}
     depends_on:
       db:
         condition: service_healthy
+    # The app needs no special Linux privileges: drop them all.
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
     volumes:
       - media:/app/media
-    ports:
-      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8000), 3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api}
+        # Same-origin: nginx forwards /api to the backend.
+        VITE_API_URL: ${VITE_API_URL:-/api}
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    volumes:
+      - media:/usr/share/nginx/media:ro
     ports:
-      - "5173:80"
+      - "${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8080}:80"
 
 volumes:
   postgres_data:

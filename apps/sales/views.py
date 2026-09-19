@@ -1,8 +1,11 @@
 """Sale endpoints — FIFO checkout, listing, and cancellation (TZ v2 8.2–8.3)."""
 
+from datetime import date
+
 from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 
@@ -12,7 +15,7 @@ from apps.debt.models import Customer
 
 from .models import Sale
 from .serializers import SaleCreateSerializer, SaleReadSerializer
-from .services import CartLine, InsufficientStock, cancel_sale, create_sale
+from .services import CartLine, InsufficientStock, can_cancel_sale, cancel_sale, create_sale
 
 
 class SaleViewSet(viewsets.ModelViewSet):
@@ -36,7 +39,12 @@ class SaleViewSet(viewsets.ModelViewSet):
         date_ = self.request.query_params.get("date")
         status_ = self.request.query_params.get("status")
         if date_:
-            queryset = queryset.filter(sold_at__date=date_)
+            try:
+                queryset = queryset.filter(sold_at__date=date.fromisoformat(date_))
+            except ValueError:
+                raise ValidationError(
+                    {"date": "Sana YYYY-MM-DD ko'rinishida bo'lishi kerak."}
+                ) from None
         if status_:
             queryset = queryset.filter(status=status_)
         return queryset
@@ -58,6 +66,19 @@ class SaleViewSet(viewsets.ModelViewSet):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        for product in products.values():
+            if not product.is_active:
+                return Response(
+                    {
+                        "data": None,
+                        "error": {
+                            "code": "product_inactive",
+                            "message": f"{product.name}: arxivlangan mahsulotni sotib bo'lmaydi.",
+                        },
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         for item in data["items"]:
             product = products[item["product_id"]]
@@ -109,5 +130,7 @@ class SaleViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
         sale = self.get_object()
+        if not can_cancel_sale(request.user, sale):
+            raise PermissionDenied("Sotuvchi faqat o'zining bugungi chekini bekor qila oladi.")
         sale = cancel_sale(sale, request.user)
         return Response(SaleReadSerializer(sale, context=self.get_serializer_context()).data)

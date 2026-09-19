@@ -180,3 +180,11 @@ class WriteThrottleTests(RoleTestCase):
             for _ in range(3):
                 response = self.client.get("/api/customers/")
                 self.assertEqual(response.status_code, 200)
+
+
+class HealthzTests(APITestCase):
+    def test_healthz_answers_without_login(self):
+        response = self.client.get("/healthz/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"status": "ok"})

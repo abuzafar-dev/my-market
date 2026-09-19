@@ -1,0 +1,18 @@
+# Block to ADD to the Caddyfile of a Caddy that already runs (in Docker) and owns
+# ports 80/443 for other projects. Do not edit or remove its other blocks.
+#
+# The hostname: your real domain, or with no domain the server IP with dashes plus
+# .sslip.io (203.0.113.5 -> 203-0-113-5.sslip.io). Caddy then gets a free, real
+# Let's Encrypt certificate for it by itself.
+#
+# "my-market" is the network alias given by docker-compose.shared-proxy.yml.
+203-0-113-5.sslip.io {
+    encode gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        -Server
+    }
+
+    reverse_proxy my-market:80
+}

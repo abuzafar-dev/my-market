@@ -4,10 +4,14 @@ import { useRouter } from 'vue-router'
 
 import api from '@/api/client'
 import Icon from '@/components/Icon.vue'
+import { t } from '@/i18n'
+import { useToastStore } from '@/stores/toast'
+import { apiError } from '@/utils/errors'
 import { formatDateTime, formatMoney } from '@/utils/format'
 
 const props = defineProps({ id: String })
 const router = useRouter()
+const toast = useToastStore()
 const sale = ref(null)
 
 async function load() {
@@ -16,9 +20,18 @@ async function load() {
 }
 onMounted(load)
 
+// The server decides who may cancel (owner: any; seller: own receipt, same
+// day) and reports it as `can_cancel`, so the button is only offered when it
+// will work. The error branch covers a rule that changed since the page loaded
+// (e.g. midnight passed).
 async function cancelSale() {
-  if (!confirm('Chekni bekor qilishni tasdiqlaysizmi?')) return
-  await api.post(`/sales/${props.id}/cancel/`)
+  if (!confirm(t('receipt.confirm_cancel'))) return
+  try {
+    await api.post(`/sales/${props.id}/cancel/`)
+    toast.success(t('receipt.cancelled_ok'))
+  } catch (err) {
+    toast.error(apiError(err))
+  }
   await load()
 }
 </script>
@@ -31,19 +44,22 @@ async function cancelSale() {
       @click="router.back()"
     >
       <Icon name="arrow-left" :size="16" />
-      Orqaga
+      {{ t('common.back') }}
     </button>
 
     <div
       v-if="sale"
-      class="rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5"
+      class="rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)] p-4"
     >
-      <p class="text-sm text-[var(--color-ink-soft)]">{{ formatDateTime(sale.sold_at) }}</p>
+      <p class="flex items-center gap-1.5 text-xs text-[var(--color-ink-soft)]">
+        <Icon name="ledger" :size="13" />
+        {{ formatDateTime(sale.sold_at) }}
+      </p>
       <p
         v-if="sale.status === 'cancelled'"
         class="mb-2 mt-1 inline-block rounded-md bg-[var(--color-danger-soft)] px-2 py-1 text-xs font-bold text-[var(--color-danger)]"
       >
-        BEKOR QILINGAN
+        {{ t('receipt.cancelled') }}
       </p>
 
       <div class="my-3 divide-y divide-[var(--color-line)]">
@@ -52,26 +68,47 @@ async function cancelSale() {
           :key="index"
           class="flex justify-between py-2 text-sm"
         >
-          <span>{{ item.product_name }} × {{ item.qty }}</span>
+          <span>{{ item.product_name }} × {{ Number(item.qty) }}</span>
           <span class="font-mono">{{ formatMoney(item.line_total) }}</span>
         </div>
       </div>
 
       <div class="flex justify-between border-t border-[var(--color-line)] pt-3 text-lg font-bold">
-        <span>Jami</span>
-        <span class="font-mono">{{ formatMoney(sale.total) }} so'm</span>
+        <span>{{ t('common.total') }}</span>
+        <span class="font-mono">{{ formatMoney(sale.total) }} {{ t('common.som') }}</span>
       </div>
       <p v-if="sale.customer_name" class="mt-1 text-sm text-[var(--color-ink-soft)]">
-        Mijoz: {{ sale.customer_name }}
+        {{ t('receipt.customer', { name: sale.customer_name }) }}
       </p>
 
       <button
-        v-if="sale.status !== 'cancelled'"
+        v-if="sale.can_cancel"
         type="button"
         class="mt-4 w-full rounded-lg bg-[var(--color-danger)] py-3 font-bold text-white transition active:scale-[0.98]"
         @click="cancelSale"
       >
-        Chekni bekor qilish
+        <span class="flex items-center justify-center gap-2">
+          <Icon name="close" :size="18" />
+          {{ t('receipt.cancel') }}
+        </span>
+      </button>
+
+      <p
+        v-else-if="sale.status !== 'cancelled'"
+        class="mt-4 text-center text-xs text-[var(--color-ink-soft)]"
+      >
+        {{ t('receipt.only_owner') }}
+      </p>
+
+      <button
+        type="button"
+        class="mt-3 w-full rounded-lg bg-[var(--color-accent)] py-3 font-bold text-white transition active:scale-[0.98]"
+        @click="router.push({ name: 'sale' })"
+      >
+        <span class="flex items-center justify-center gap-2">
+          <Icon name="check" :size="18" />
+          {{ t('common.ok') }}
+        </span>
       </button>
     </div>
   </div>

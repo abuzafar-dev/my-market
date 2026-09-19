@@ -1,0 +1,21 @@
+# For a server where ANOTHER Docker container (e.g. a Caddy that owns ports
+# 80/443 for other projects) is the public entrance. It puts our nginx on that
+# container's Docker network under the fixed name "my-market", so the existing
+# proxy can forward to it with:   reverse_proxy my-market:80
+#
+# Use together with docker-compose.yml. Easiest: put this in .env once
+#     COMPOSE_FILE=docker-compose.yml:docker-compose.shared-proxy.yml
+#     PROXY_NETWORK=<the other project's network, see QOLLANMA.md section 1b>
+# and then plain `docker compose up -d --build` uses both files.
+services:
+  frontend:
+    networks:
+      default: {}
+      proxy:
+        aliases:
+          - my-market
+
+networks:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:?Set PROXY_NETWORK in .env (name of the shared proxy network)}

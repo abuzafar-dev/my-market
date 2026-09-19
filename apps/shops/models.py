@@ -19,6 +19,13 @@ class Shop(BaseModel):
     def __str__(self) -> str:
         return self.name
 
+    def get_settings(self) -> ShopSettings:
+        """This shop's settings, created with defaults on first use — a shop
+        added through the admin has no settings row yet, and reading the
+        reverse one-to-one directly would 500 the dashboard and settings."""
+        settings, _ = ShopSettings.objects.get_or_create(shop=self)
+        return settings
+
 
 class UserManager(BaseUserManager):
     def create_user(self, phone: str, password: str | None = None, **extra_fields):

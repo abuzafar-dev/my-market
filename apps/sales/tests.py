@@ -265,3 +265,65 @@ class CancelSaleTests(SalesTestCase):
 
         batch.refresh_from_db()
         self.assertEqual(batch.qty_remaining, Decimal("5"))
+
+
+class SalesApiRegressionTests(SalesTestCase):
+    """Bugs found in the backend review — each fails on the code before the fix."""
+
+    def setUp(self):
+        super().setUp()
+        from rest_framework.test import APIClient
+
+        self.product.unit = Product.Unit.KG
+        self.product.save()
+        self.make_batch(Decimal("50"), 1000, 1300)
+        # raise_request_exception=False: a 500 must come back as a status code, not blow up the test.
+        self.client = APIClient(raise_request_exception=False)
+        self.client.force_authenticate(self.user)
+
+    def sale_payload(self, **overrides):
+        payload = {
+            "client_id": str(uuid.uuid4()),
+            "payment_type": "cash",
+            "items": [{"product_id": str(self.product.id), "qty": "1"}],
+        }
+        payload.update(overrides)
+        return payload
+
+    def test_invalid_date_filter_is_a_400_not_a_500(self):
+        response = self.client.get("/api/sales/", {"date": "abc"})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("date", response.json()["error"]["fields"])
+
+    def test_valid_date_filter_still_works(self):
+        from django.utils import timezone
+
+        self.client.post("/api/sales/", self.sale_payload(), format="json")
+        today = timezone.localdate().isoformat()
+
+        response = self.client.get("/api/sales/", {"date": today})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()["data"]["results"]), 1)
+
+    def test_archived_product_cannot_be_sold(self):
+        Product.objects.filter(pk=self.product.pk).update(is_active=False)
+
+        response = self.client.post("/api/sales/", self.sale_payload(), format="json")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error"]["code"], "product_inactive")
+        self.assertEqual(Sale.objects.count(), 0)
+        self.assertEqual(Batch.objects.get(product=self.product).qty_remaining, Decimal("50"))
+
+    def test_fractional_kg_sale_prices_and_deducts_exactly(self):
+        response = self.client.post(
+            "/api/sales/",
+            self.sale_payload(items=[{"product_id": str(self.product.id), "qty": "2.5"}]),
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["data"]["total"], 3250)
+        self.assertEqual(Batch.objects.get(product=self.product).qty_remaining, Decimal("47.5"))

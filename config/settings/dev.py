@@ -5,6 +5,7 @@ from decouple import config
 from .base import *  # noqa: F403
 
 DEBUG = True
+REFRESH_COOKIE_SECURE = False
 
 # The current developer's LAN IP, for opening the app from a phone on the
 # same Wi-Fi — goes stale on a different network or a different developer's

@@ -20,7 +20,8 @@ ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     DJANGO_SETTINGS_MODULE=config.settings.prod \
-    HOME=/home/app
+    HOME=/home/app \
+    WEB_CONCURRENCY=3
 
 COPY --from=builder /opt/venv /opt/venv
 COPY . .
@@ -34,9 +35,12 @@ RUN SECRET_KEY=build-time-placeholder \
     ALLOWED_HOSTS=localhost \
     python manage.py collectstatic --noinput
 
-RUN chown -R app:app /home/app && chmod +x docker-entrypoint.sh
+# /app/media is the mount point of the shared `media` volume: it must exist and
+# belong to `app` *before* the volume is first created, or Docker makes it
+# root-owned and product photo uploads fail with PermissionError.
+RUN mkdir -p /app/media && chown -R app:app /home/app /app/media && chmod +x docker-entrypoint.sh
 USER app
 
 EXPOSE 8000
 ENTRYPOINT ["./docker-entrypoint.sh"]
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--timeout", "60", "--access-logfile", "-"]

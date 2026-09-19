@@ -1,0 +1,18 @@
+# HTTPS in front of the app, with a free certificate that Caddy gets and renews
+# by itself. Replace the address with your real domain (its DNS "A" record must
+# already point at this server), save as /etc/caddy/Caddyfile, then:
+#     sudo systemctl reload caddy
+shop.example.uz {
+    encode gzip
+
+    header {
+        # Browsers must use HTTPS for this site from now on (1 year).
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        # Don't advertise the server software.
+        -Server
+    }
+
+    # Caddy replaces any X-Forwarded-For the client sent with the real address,
+    # which is what the app's login lockout relies on (NUM_PROXIES=2).
+    reverse_proxy 127.0.0.1:8080
+}

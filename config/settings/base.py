@@ -94,6 +94,10 @@ DATABASES = {
 # --------------------------------------------------------------------------
 AUTH_USER_MODEL = "shops.User"
 
+# Counts wrong passwords per address/phone and locks a guesser out (see
+# apps/shops/security.py). Also guards the Django admin login.
+AUTHENTICATION_BACKENDS = ["apps.shops.security.LockoutModelBackend"]
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
@@ -153,13 +157,28 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "apps.common.renderers.EnvelopeJSONRenderer",
     ],
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    # How many reverse proxies sit in front of the app (Caddy + nginx = 2 in the
+    # provided deployment). 0 means "trust only the socket address". It MUST be
+    # right: with the wrong value a client can put anything in X-Forwarded-For and
+    # escape every rate limit, or all users end up sharing the proxy's address.
+    "NUM_PROXIES": config("NUM_PROXIES", cast=int, default=0),
+    "DEFAULT_PAGINATION_CLASS": "apps.common.pagination.StandardPagination",
     "PAGE_SIZE": 20,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
-    # "writes" is applied per-action (get_throttles()) to the write-heavy
-    # endpoints that need abuse protection — sale creation, debt entries
-    # (P5) — everything else stays under the anon-only default above.
-    "DEFAULT_THROTTLE_RATES": {"anon": "20/min", "writes": "120/min"},
+    # anon / user: every request (per address / per logged-in user). "writes",
+    # "login" and "exports" are applied per view on top: sale + debt writes,
+    # the login form, and the heavy report files.
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "30/min",
+        "user": "600/min",
+        "writes": "120/min",
+        "login": "10/min",
+        "exports": "12/min",
+    },
     "EXCEPTION_HANDLER": "apps.common.exceptions.exception_handler",
 }
 
@@ -182,7 +201,47 @@ SPECTACULAR_SETTINGS = {
 }
 
 # --------------------------------------------------------------------------
+# Logging
+# --------------------------------------------------------------------------
+# Django's default config only prints errors when DEBUG=True (its console
+# handler is require_debug_true, and the fallback mail_admins needs ADMINS
+# + SMTP) — so with DEBUG=False a 500 left no traceback anywhere. Everything
+# here goes to stderr, which gunicorn/docker capture as the service log.
+LOG_LEVEL = config("LOG_LEVEL", default="INFO")
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "standard": {"format": "%(asctime)s %(levelname)s %(name)s: %(message)s"},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "standard"},
+    },
+    "root": {"handlers": ["console"], "level": "WARNING"},
+    "loggers": {
+        # Unhandled exceptions -> 5xx, with the traceback.
+        "django.request": {"handlers": ["console"], "level": "ERROR", "propagate": False},
+        "django.security": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        # Business events (sale cancelled, stock written off) from apps.*
+        "apps": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
+    },
+}
+
+# --------------------------------------------------------------------------
 # CORS — only the separately hosted Vue SPA is allowed to call this API
 # --------------------------------------------------------------------------
 CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", cast=Csv(), default="http://localhost:5173")
+
+# --------------------------------------------------------------------------
+# Optional surfaces (off in production unless asked for)
+# --------------------------------------------------------------------------
+# The Django admin is a full back door to the data; the server keeps it switched
+# off (ADMIN_ENABLED=False) and turns it on only while someone needs it.
+ADMIN_ENABLED = config("ADMIN_ENABLED", cast=bool, default=True)
+
+# The refresh-token cookie is only ever sent over HTTPS unless a settings module
+# says otherwise (dev serves localhost; prod's ALLOW_INSECURE_HTTP test mode).
+REFRESH_COOKIE_SECURE = True
+
 CORS_ALLOW_CREDENTIALS = True
