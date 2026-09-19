@@ -23,7 +23,7 @@ const form = ref({
   name: '',
   category: null,
   unit: 'piece',
-  markup_pct: 0,
+  markup_amount: 0,
   min_stock: 0,
   barcode: route.query.barcode || '',
 })
@@ -85,7 +85,7 @@ onMounted(async () => {
     form.value = {
       name: product.name,
       unit: product.unit,
-      markup_pct: product.markup_pct,
+      markup_amount: product.markup_amount,
       min_stock: product.min_stock,
       barcode: product.barcode || '',
       category: product.category,
@@ -226,11 +226,13 @@ async function archive() {
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <FieldLabel icon="percent">{{ t('product_form.markup') }}</FieldLabel>
+          <FieldLabel icon="cash">{{ t('product_form.markup') }}</FieldLabel>
           <input
-            v-model.number="form.markup_pct"
+            v-model.number="form.markup_amount"
             type="number"
-            step="0.01"
+            step="1"
+            min="0"
+            inputmode="numeric"
             required
             class="w-full rounded-lg border border-[var(--color-line)] px-3 py-2.5"
           />

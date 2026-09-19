@@ -20,7 +20,7 @@ class ProductAdmin(admin.ModelAdmin):
         "shop",
         "category",
         "unit",
-        "markup_pct",
+        "markup_amount",
         "min_stock",
         "stock",
         "is_active",

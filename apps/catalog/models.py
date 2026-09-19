@@ -52,7 +52,10 @@ class Product(BaseModel):
     unit = models.CharField(
         max_length=10, choices=Unit.choices, default=Unit.PIECE, verbose_name="O'lchov birligi"
     )
-    markup_pct = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Ustama foizi")
+    # A fixed so'm amount added on top of the cost (not a percentage): the
+    # shopkeeper thinks "+1 000 so'm per item", and it stays predictable
+    # when the cost changes.
+    markup_amount = models.PositiveBigIntegerField(default=0, verbose_name="Ustama (so'm)")
     min_stock = models.DecimalField(max_digits=12, decimal_places=3, verbose_name="Minimal qoldiq")
     is_active = models.BooleanField(default=True, verbose_name="Faol")
 

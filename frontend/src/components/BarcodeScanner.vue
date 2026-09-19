@@ -4,10 +4,10 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import Icon from '@/components/Icon.vue'
 import { t } from '@/i18n'
 
-// Simplification vs. TZ v2 3.4: only the browser's native BarcodeDetector
-// is used (Chrome/Edge/Android). Safari and other browsers without it
-// fall back to search/quick-buttons instead of the zxing-wasm path the
-// TZ describes for them.
+// Uses the browser's native BarcodeDetector where it exists (Chrome/Edge on
+// Android). iOS has none — every iPhone browser is WebKit — so there we load
+// the zxing-wasm based ponyfill on demand. Its .wasm file is bundled with the
+// app (the CSP only allows our own origin), never fetched from a CDN.
 //
 // Renders as an inline panel (not a fullscreen takeover) so the cart and
 // search stay visible while scanning.
@@ -17,7 +17,7 @@ const emit = defineEmits(['detected', 'close'])
 const FOUND_HOLD_MS = 600
 
 const videoRef = ref(null)
-const supported = 'BarcodeDetector' in window
+const supported = ref(true)
 const error = ref('')
 const torchAvailable = ref(false)
 const torchOn = ref(false)
@@ -29,8 +29,21 @@ let rafId = null
 let audioCtx = null
 let foundTimeout = null
 
+const FORMATS = ['ean_13', 'ean_8']
+
+async function createDetector() {
+  if ('BarcodeDetector' in window) return new window.BarcodeDetector({ formats: FORMATS })
+  const [{ BarcodeDetector, setZXingModuleOverrides }, { default: wasmUrl }] = await Promise.all([
+    import('barcode-detector/ponyfill'),
+    import('zxing-wasm/reader/zxing_reader.wasm?url'),
+  ])
+  setZXingModuleOverrides({
+    locateFile: (path, prefix) => (path.endsWith('.wasm') ? wasmUrl : prefix + path),
+  })
+  return new BarcodeDetector({ formats: FORMATS })
+}
+
 async function start() {
-  if (!supported) return
   try {
     // Created here, right after the tap on "Skaner", so the browser still
     // counts it as user-initiated and lets the success beep play (iOS Safari
@@ -39,9 +52,27 @@ async function start() {
   } catch {
     audioCtx = null
   }
+  if (!navigator.mediaDevices?.getUserMedia) {
+    supported.value = false
+    return
+  }
   try {
-    detector = new window.BarcodeDetector({ formats: ['ean_13', 'ean_8'] })
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+    // Asked for first: the camera prompt should follow the tap right away,
+    // not wait for the (larger) wasm decoder to download.
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+    })
+  } catch {
+    error.value = t('scanner.no_camera')
+    return
+  }
+  try {
+    detector = await createDetector()
+  } catch {
+    supported.value = false
+    return
+  }
+  try {
     // Torch is a track capability only some devices expose (mostly Android
     // Chrome); iOS Safari and desktop webcams don't, so the button is hidden.
     const [track] = stream.getVideoTracks()

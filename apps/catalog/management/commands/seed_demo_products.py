@@ -228,7 +228,7 @@ class Command(BaseCommand):
                     name=name,
                     barcode=barcode,
                     unit=unit,
-                    markup_pct=Decimal(str(random.randint(10, 35))),
+                    markup_amount=random.randrange(500, 5001, 500),
                     min_stock=min_stock,
                     is_active=True,
                 )
@@ -240,7 +240,7 @@ class Command(BaseCommand):
         for product in products:
             low, high = _PRICE_RANGES[product.unit]
             cost_price = random.randint(low, high)
-            sale_price = int(round(cost_price * (1 + product.markup_pct / Decimal("100"))))
+            sale_price = cost_price + product.markup_amount
 
             if product.unit == Product.Unit.PIECE:
                 qty = Decimal(random.randint(10, 200))

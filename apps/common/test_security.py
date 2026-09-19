@@ -50,7 +50,7 @@ class TwoShopsTestCase(APITestCase):
             name="B mahsuloti",
             barcode="4780000000999",
             unit=Product.Unit.PIECE,
-            markup_pct=Decimal("20"),
+            markup_amount=2000,
             min_stock=Decimal("1"),
         )
         self.batch_b = Batch.objects.create(
@@ -137,7 +137,7 @@ class TenantIsolationTests(TwoShopsTestCase):
             shop=self.shop_a,
             name="A",
             unit=Product.Unit.PIECE,
-            markup_pct=Decimal("10"),
+            markup_amount=1000,
             min_stock=Decimal("0"),
         )
         Batch.objects.create(
@@ -167,7 +167,7 @@ class TenantIsolationTests(TwoShopsTestCase):
                 "name": "x",
                 "category": str(self.cat_b.id),
                 "unit": "piece",
-                "markup_pct": 10,
+                "markup_amount": 1000,
                 "min_stock": 0,
             },
             format="json",
@@ -248,13 +248,13 @@ class InputLimitTests(TwoShopsTestCase):
             shop=self.shop_a,
             name="A",
             unit=Product.Unit.PIECE,
-            markup_pct=Decimal("999"),
+            markup_amount=1000,
             min_stock=Decimal("0"),
         )
         for payload in (
             {"cost_price": 10**15},
             {"cost_price": 1000, "sale_price": 10**15},
-            {"cost_price": 10**10},  # in range itself, but cost + 999% markup is not
+            {"cost_price": 10**10},  # in range itself, but cost + markup is not
         ):
             response = self.client.post(
                 "/api/batches/",
@@ -277,7 +277,7 @@ class InputLimitTests(TwoShopsTestCase):
             shop=self.shop_a,
             name="A",
             unit=Product.Unit.PIECE,
-            markup_pct=Decimal("10"),
+            markup_amount=1000,
             min_stock=Decimal("0"),
         )
         self.client.patch(
@@ -480,7 +480,7 @@ class ExportFormulaInjectionTests(TwoShopsTestCase):
             shop=self.shop_a,
             name=self.EVIL,
             unit=Product.Unit.PIECE,
-            markup_pct=Decimal("20"),
+            markup_amount=2000,
             min_stock=Decimal("50"),
         )
         Batch.objects.create(
@@ -525,7 +525,7 @@ class ImageUploadTests(TwoShopsTestCase):
                 {
                     "name": "Foto",
                     "unit": "piece",
-                    "markup_pct": "10",
+                    "markup_amount": "1000",
                     "min_stock": "0",
                     "image": SimpleUploadedFile(name, content, content_type=content_type),
                 },

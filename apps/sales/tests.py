@@ -21,7 +21,7 @@ class SalesTestCase(TestCase):
             shop=self.shop,
             name="Non",
             unit=Product.Unit.PIECE,
-            markup_pct=Decimal("10"),
+            markup_amount=1000,
             min_stock=Decimal("5"),
         )
 

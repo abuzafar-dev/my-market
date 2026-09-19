@@ -54,7 +54,7 @@ class RoleFixtureMixin:
             name="Un",
             unit=Product.Unit.KG,
             barcode="4780000000012",
-            markup_pct=Decimal("30"),
+            markup_amount=3000,
             min_stock=Decimal("5"),
         )
         self.batch = Batch.objects.create(
@@ -124,7 +124,7 @@ class RoleMatrixTests(RoleFixtureMixin, TestCase):
             (
                 "POST",
                 "/api/products/",
-                {"name": "Yangi", "unit": "kg", "markup_pct": "20", "min_stock": "1"},
+                {"name": "Yangi", "unit": "kg", "markup_amount": "2000", "min_stock": "1"},
                 201,
                 403,
             ),
@@ -213,7 +213,7 @@ class RoleMatrixTests(RoleFixtureMixin, TestCase):
 
 
 class HiddenCostDataTests(RoleFixtureMixin, TestCase):
-    """Cost data is owner-only: unit_cost (already) and markup_pct (it is the
+    """Cost data is owner-only: unit_cost (already) and markup_amount (it is the
     cost in disguise: sale price = cost * (1 + markup))."""
 
     def test_markup_is_visible_to_owner_and_hidden_from_seller(self):
@@ -222,8 +222,8 @@ class HiddenCostDataTests(RoleFixtureMixin, TestCase):
         owner_view = self.client_for(self.owner).get(url).json()["data"]
         seller_view = self.client_for(self.seller).get(url).json()["data"]
 
-        self.assertIn("markup_pct", owner_view)
-        self.assertNotIn("markup_pct", seller_view)
+        self.assertIn("markup_amount", owner_view)
+        self.assertNotIn("markup_amount", seller_view)
 
     def test_markup_is_hidden_from_seller_in_lists_too(self):
         # The purchase list only holds low-stock products, so make this one low.
@@ -233,7 +233,7 @@ class HiddenCostDataTests(RoleFixtureMixin, TestCase):
                 body = self.client_for(self.seller).get(url).json()["data"]
                 rows = body["results"] if isinstance(body, dict) else body
                 self.assertTrue(rows)
-                self.assertNotIn("markup_pct", rows[0])
+                self.assertNotIn("markup_amount", rows[0])
 
     def test_unit_cost_is_hidden_from_seller_on_receipts(self):
         sale = self.sell(self.owner)

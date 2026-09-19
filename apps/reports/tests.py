@@ -35,7 +35,7 @@ class ReportExportTests(TestCase):
             shop=self.shop,
             name=name,
             unit=unit,
-            markup_pct=Decimal("20"),
+            markup_amount=2000,
             min_stock=Decimal(min_stock),
         )
         Batch.objects.create(

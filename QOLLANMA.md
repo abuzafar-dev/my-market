@@ -120,7 +120,7 @@ Baza jadvallari (migratsiyalar) o'zi yaratiladi.
 
 ```bash
 docker compose ps                       # db, backend, frontend — hammasi Up
-curl -s http://127.0.0.1:8080/healthz/  # {"status": "ok"} chiqishi kerak
+curl -s -H "Host: shop.uz" http://127.0.0.1:8080/healthz/  # {"status": "ok"} (Host = .env dagi ALLOWED_HOSTS)
 ```
 
 `ok` chiqmasa: `docker compose logs backend` — oxirgi qatorlar sababni
@@ -339,7 +339,7 @@ daqiqa; boshqa oynada `free -h` bilan xotirani kuzating).
 
 ```bash
 docker compose ps                                          # 3 ta xizmat Up
-docker exec cinevault-caddy-1 wget -qO- http://my-market/healthz/    # {"status": "ok"}
+docker exec cinevault-caddy-1 wget -qO- --header "Host: $HOST" http://my-market/healthz/    # {"status": "ok"}
 ```
 
 **5. Caddy'ga blokni qo'shing.** Avval nusxa oling, so'ng
@@ -385,9 +385,14 @@ Domensiz uch yo'l bor:
 1. Server IP'sini bilib oling: `curl -4 ifconfig.me` (masalan `203.0.113.5`).
 2. Nomni yasang: nuqtalarni tirega almashtirib `.sslip.io` qo'shing → `203-0-113-5.sslip.io`.
    Tekshiring: `getent hosts 203-0-113-5.sslip.io` — o'sha IP chiqishi kerak.
+   **Shu nom boshqa loyihada allaqachon band bo'lsa** (bitta Caddy'da ikki blok
+   bir xil nom bilan bo'lolmaydi), nom oldiga istalgan so'z qo'shing:
+   `market.203-0-113-5.sslip.io` — sslip.io bunday nomni ham xuddi shu IP'ga
+   yo'naltiradi, Caddy esa unga alohida sertifikat oladi. Bu holda pastdagi
+   hamma joyda o'sha nomni ishlating.
 3. `.env` da (1-qism, 4-qadam) domen o'rniga shu nomni yozing:
    `ALLOWED_HOSTS=203-0-113-5.sslip.io` va `CSRF_TRUSTED_ORIGINS=https://203-0-113-5.sslip.io`.
-4. `docker compose up -d --build` (5-qadam) — `curl -s http://127.0.0.1:8080/healthz/` → `ok`.
+4. `docker compose up -d --build` (5-qadam) — `curl -s -H "Host: <sizning nom>" http://127.0.0.1:8080/healthz/` → `ok`.
 5. HTTPS'ni ulang — holatingizga qarab:
    - **Bo'sh 80/443:** `deploy/Caddyfile.no-domain.example` dagi **A blok**ni 6-qadamdagidek qo'llang.
    - **Mavjud Caddy:** uning `Caddyfile`iga qo'shing (mavjud bloklarga tegmang), so'ng `sudo systemctl reload caddy`:
@@ -512,7 +517,7 @@ tovar), 👤 profil menyusi.
 ### Mahsulot qo'shish
 
 **Mahsulot → Yangi**. Nomi, kategoriya, birlik (dona / kg / litr), ustama
-foizi va minimal qoldiqni yozing. **Shtrix-kod ixtiyoriy:** bor bo'lsa
+summasi (so'mda, masalan 1000) va minimal qoldiqni yozing. **Shtrix-kod ixtiyoriy:** bor bo'lsa
 kamera tugmasi bilan skanerlang; meva-sabzavot kabilar uchun bo'sh
 qoldiring — sotuvda nomi bilan qidirib topiladi. Saqlagandan keyin
 **Kirim** sahifasi ochiladi: qancha kelgani, tannarxi va (bo'lsa) yaroqlilik
@@ -620,6 +625,7 @@ eski cheklar va hisobotlar saqlanadi.
 | Muammo | Yechim |
 |---|---|
 | `docker compose up` "POSTGRES_PASSWORD" deydi | `.env` fayli yo'q yoki `POSTGRES_PASSWORD` bo'sh. |
+| `healthz` **400 Bad Request** beradi | Bu xato emas: ilova ishlayapti, lekin so'rovdagi `Host` nomi `ALLOWED_HOSTS` da yo'q (masalan, `curl` ni `127.0.0.1` bilan chaqirdingiz). Tekshirishda `-H "Host: <ALLOWED_HOSTS dagi nom>"` qo'shing. Brauzerda to'g'ri nom bilan ochsangiz ishlaydi. |
 | `healthz` javob bermaydi | `docker compose logs backend` — oxirgi qator sababni aytadi. Ko'pincha `.env` da xato. |
 | Brauzerda `400 Bad Request` | `ALLOWED_HOSTS` da domen yo'q yoki xato yozilgan. `.env`ni tuzatib, `docker compose up -d`. |
 | Admin panelga kirganda "CSRF verification failed" | `CSRF_TRUSTED_ORIGINS` da `https://domen` yo'q. |

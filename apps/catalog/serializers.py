@@ -36,22 +36,23 @@ class ProductSerializer(serializers.ModelSerializer):
             "category_name",
             "barcode",
             "unit",
-            "markup_pct",
+            "markup_amount",
             "min_stock",
             "is_active",
             "stock",
             "price",
         ]
         read_only_fields = ["is_active"]
+        extra_kwargs = {"markup_amount": {"max_value": MAX_PRICE}}
 
     def to_representation(self, instance):
-        # markup_pct is cost data in disguise (sale price = cost * (1 + markup)),
+        # markup_amount is cost data in disguise (sale price = cost + markup),
         # so it follows the same rule as SaleItem.unit_cost: owner-only. The
         # request is checked here because this serializer is also nested.
         data = super().to_representation(instance)
         request = self.context.get("request")
         if request is not None and getattr(request.user, "role", None) != User.Role.OWNER:
-            data.pop("markup_pct", None)
+            data.pop("markup_amount", None)
         return data
 
     def get_price(self, product: Product) -> int | None:
@@ -176,7 +177,7 @@ class BatchCreateSerializer(serializers.ModelSerializer):
             )
         # The auto-calculated sale price (cost + markup) must stay in range too.
         if product and "sale_price" not in attrs and "cost_price" in attrs:
-            auto_price = attrs["cost_price"] * (1 + product.markup_pct / Decimal("100"))
+            auto_price = attrs["cost_price"] + product.markup_amount
             if auto_price > MAX_PRICE:
                 raise serializers.ValidationError({"cost_price": "Narx juda katta."})
         return attrs
@@ -188,7 +189,7 @@ class BatchCreateSerializer(serializers.ModelSerializer):
 
         sale_price = validated_data.get("sale_price")
         if sale_price is None:
-            sale_price = round(cost_price + (cost_price * product.markup_pct / Decimal("100")))
+            sale_price = round(cost_price + product.markup_amount)
 
         return Batch.objects.create(
             shop=request.user.shop,

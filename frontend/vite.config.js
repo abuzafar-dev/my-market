@@ -36,8 +36,9 @@ export default defineConfig({
       // The service worker falls back to index.html for page navigations; it
       // must not do that for the Django admin, API, static files or photos.
       workbox: {
-        // Fonts are part of the app shell, so cache them for offline use too.
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // Fonts and the barcode decoder (.wasm) are part of the app shell, so
+        // cache them for offline use too.
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2,wasm}'],
         navigateFallbackDenylist: [
           /^\/api\//,
           /^\/admin\//,

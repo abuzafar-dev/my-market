@@ -149,7 +149,7 @@ export default {
     no_category: 'Kategoriyasiz',
     new_category: 'Yangi kategoriya nomi',
     unit: 'Birlik',
-    markup: 'Ustama foizi (%)',
+    markup: "Ustama (so'm)",
     min_stock: 'Minimal qoldiq',
     barcode: 'Shtrix-kod (ixtiyoriy)',
     barcode_placeholder: 'Shtrix-kodsiz ham saqlash mumkin',

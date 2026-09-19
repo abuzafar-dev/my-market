@@ -25,7 +25,7 @@ class CatalogTestCase(TestCase):
             category=self.category,
             name="Suv",
             unit=Product.Unit.LITER,
-            markup_pct=Decimal("20"),
+            markup_amount=2000,
             min_stock=Decimal("5"),
         )
 
@@ -200,7 +200,7 @@ class QuickProductsStockTests(CatalogTestCase):
             shop=self.shop,
             name="Aaa",
             unit="piece",
-            markup_pct=Decimal("10"),
+            markup_amount=1000,
             min_stock=Decimal("1"),
         )
         self.make_batch(qty=Decimal("50"))
@@ -246,7 +246,7 @@ class ProductImageUploadTests(CatalogTestCase):
         return SimpleUploadedFile(name, buffer.getvalue(), content_type="image/jpeg")
 
     def form(self, **extra):
-        return {"name": "Rasmli", "unit": "kg", "markup_pct": "20", "min_stock": "1", **extra}
+        return {"name": "Rasmli", "unit": "kg", "markup_amount": "2000", "min_stock": "1", **extra}
 
     def test_product_can_be_created_with_a_photo(self):
         response = self.client.post(

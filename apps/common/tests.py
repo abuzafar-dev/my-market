@@ -37,7 +37,7 @@ class RoleTestCase(APITestCase):
             shop=self.shop,
             name="Non",
             unit=Product.Unit.PIECE,
-            markup_pct=Decimal("10"),
+            markup_amount=1000,
             min_stock=Decimal("5"),
         )
 
@@ -83,7 +83,7 @@ class OwnerOnlyEndpointTests(RoleTestCase):
         payload = {
             "name": "Sut",
             "unit": Product.Unit.PIECE,
-            "markup_pct": "15",
+            "markup_amount": "1500",
             "min_stock": "3",
         }
         self.assert_owner_ok_seller_forbidden(
@@ -92,7 +92,7 @@ class OwnerOnlyEndpointTests(RoleTestCase):
 
     def test_product_patch(self):
         url = f"/api/products/{self.product.id}/"
-        self.assert_owner_ok_seller_forbidden("patch", url, {"markup_pct": "20"})
+        self.assert_owner_ok_seller_forbidden("patch", url, {"markup_amount": "2000"})
 
     def test_product_archive(self):
         url = f"/api/products/{self.product.id}/archive/"

@@ -35,7 +35,7 @@ class CatalogScaleTests(TestCase):
                 category=self.category,
                 name=f"{prefix} {i:03d}",
                 unit=Product.Unit.PIECE,
-                markup_pct=Decimal("20"),
+                markup_amount=2000,
                 min_stock=Decimal("5"),
             )
             Batch.objects.create(
