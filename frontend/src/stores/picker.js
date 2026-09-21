@@ -13,7 +13,8 @@ import { unitMeta } from '@/utils/units'
 // scanner) and from the phone's always-visible scanner button on any page:
 //   kg product   -> weight sheet, then add
 //   other units  -> one unit straight in
-//   feedback     -> toast (+ the cart line flashes on the sale page)
+//   feedback     -> a small pill (+ the cart line flashes on the sale page);
+//                   problems (sold out, capped by stock...) still get a full toast
 let flashTimer = null
 
 export const usePickerStore = defineStore('picker', {
@@ -51,7 +52,7 @@ export const usePickerStore = defineStore('picker', {
       if (wasCapped) {
         this.warn(t('picker.only_stock', { name: product.name, n: Number(product.stock), unit }))
       } else if (added > 0) {
-        useToastStore().success(t('picker.added', { name: product.name, n: added, unit }))
+        useToastStore().notice(t('picker.added', { name: product.name, n: added, unit }))
       }
       if (added > 0) this.flash(product.id)
     },

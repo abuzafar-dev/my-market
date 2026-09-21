@@ -11,6 +11,8 @@ import InfoHint from '@/components/InfoHint.vue'
 import PageTitle from '@/components/PageTitle.vue'
 import PhotoCapture from '@/components/PhotoCapture.vue'
 import { t } from '@/i18n'
+import { useCartStore } from '@/stores/cart'
+import { useConfirmStore } from '@/stores/confirm'
 import { useToastStore } from '@/stores/toast'
 import { apiError } from '@/utils/errors'
 import { useBarcodeHandler } from '@/utils/hardwareScanner'
@@ -19,6 +21,8 @@ const props = defineProps({ id: String })
 const route = useRoute()
 const router = useRouter()
 const toast = useToastStore()
+const cart = useCartStore()
+const confirm = useConfirmStore()
 const isEdit = Boolean(props.id)
 
 const form = ref({
@@ -30,6 +34,7 @@ const form = ref({
   barcode: route.query.barcode || '',
 })
 const saving = ref(false)
+const busy = ref(false) // archiving / deleting — blocks a double tap
 const showScanner = ref(false)
 
 const existingImageUrl = ref(null)
@@ -139,24 +144,43 @@ async function save() {
 }
 
 async function archive() {
-  if (!confirm(t('product_form.archive_confirm'))) return
+  const ok = await confirm.ask({
+    title: t('product_form.archive_title'),
+    text: t('product_form.archive_confirm'),
+    confirmLabel: t('product_form.archive'),
+  })
+  if (!ok || busy.value) return
+  busy.value = true
   try {
     await api.post(`/products/${props.id}/archive/`)
+    cart.removeProduct(props.id) // an archived product can't be sold any more
     toast.success(t('product_form.archived'))
     router.push({ name: 'products' })
   } catch (err) {
     toast.error(apiError(err))
+  } finally {
+    busy.value = false
   }
 }
 
 async function remove() {
-  if (!confirm(t('product_form.delete_confirm'))) return
+  const ok = await confirm.ask({
+    title: t('product_form.delete_title'),
+    text: t('product_form.delete_confirm'),
+    confirmLabel: t('product_form.delete'),
+    danger: true,
+  })
+  if (!ok || busy.value) return
+  busy.value = true
   try {
     await api.delete(`/products/${props.id}/`)
+    cart.removeProduct(props.id) // a line for a deleted product would fail at checkout
     toast.success(t('product_form.deleted'))
     router.push({ name: 'products' })
   } catch (err) {
     toast.error(apiError(err))
+  } finally {
+    busy.value = false
   }
 }
 </script>
@@ -307,7 +331,8 @@ async function remove() {
     <button
       v-if="isEdit"
       type="button"
-      class="mt-5 w-full rounded-lg border border-[var(--color-danger)]/25 bg-[var(--color-danger-soft)] py-3 font-bold text-[var(--color-danger)]"
+      :disabled="busy"
+      class="mt-5 w-full rounded-lg border border-[var(--color-danger)]/25 bg-[var(--color-danger-soft)] py-3 font-bold text-[var(--color-danger)] transition active:scale-[0.98] disabled:opacity-50"
       @click="archive"
     >
       {{ t('product_form.archive') }}
@@ -315,7 +340,8 @@ async function remove() {
     <button
       v-if="isEdit"
       type="button"
-      class="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--color-danger)] py-3 font-bold text-white"
+      :disabled="busy"
+      class="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--color-danger)] py-3 font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
       @click="remove"
     >
       <Icon name="trash" :size="17" />

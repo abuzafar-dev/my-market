@@ -7,13 +7,16 @@ import { t } from '@/i18n'
 //   kind: 'success' | 'error' | 'warn' | 'info'
 const DURATION = { success: 2600, info: 3000, warn: 3800, error: 4600 }
 const MAX_VISIBLE = 3
+const MINI_MS = 1500
 
 let nextId = 1
+let miniTimer = null
 const timers = new Map()
 
 export const useToastStore = defineStore('toast', {
   state: () => ({
     toasts: [], // { id, kind, title, text, ms }
+    mini: null, // { id, text } — the small "added to cart" pill; only one at a time
   }),
 
   actions: {
@@ -27,6 +30,19 @@ export const useToastStore = defineStore('toast', {
         id,
         setTimeout(() => this.dismiss(id), duration),
       )
+      return id
+    },
+
+    // A small, quiet confirmation for routine actions (a product dropped into
+    // the cart). One pill that is replaced, never stacked, and that does not
+    // take taps — a burst of scans just updates the same pill.
+    notice(text) {
+      const id = nextId++
+      this.mini = { id, text }
+      clearTimeout(miniTimer)
+      miniTimer = setTimeout(() => {
+        this.mini = null
+      }, MINI_MS)
       return id
     },
 
@@ -45,6 +61,8 @@ export const useToastStore = defineStore('toast', {
 
     clear() {
       this.toasts.forEach((toast) => this.dismiss(toast.id))
+      clearTimeout(miniTimer)
+      this.mini = null
     },
 
     dismiss(id) {

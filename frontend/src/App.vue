@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 
 import AppHeader from '@/components/AppHeader.vue'
 import BottomNav from '@/components/BottomNav.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import GlobalScanner from '@/components/GlobalScanner.vue'
 import KgSheet from '@/components/KgSheet.vue'
 import SideNav from '@/components/SideNav.vue'
@@ -27,6 +28,7 @@ const showNav = computed(() => route.name !== 'login')
     <BottomNav v-if="showNav" />
     <SideNav v-if="showNav" />
     <KgSheet v-if="showNav" />
+    <ConfirmDialog />
     <!-- Also on login, so a failed sign-in gets the same notification -->
     <ToastHost />
   </div>

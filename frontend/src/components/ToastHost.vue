@@ -3,9 +3,11 @@ import Icon from '@/components/Icon.vue'
 import { t } from '@/i18n'
 import { useToastStore } from '@/stores/toast'
 
-// The app's notifications: a stack of cards under the header. Each one has a
-// coloured icon tile, a title + message and a thin bar that drains as the
-// toast's time runs out. Tap a card to dismiss it.
+// The app's notifications. Problems and results are a stack of cards under
+// the header: a coloured icon tile, a title + message and a thin bar that
+// drains as the toast's time runs out (tap a card to dismiss it). Routine
+// confirmations ("added to cart") are a small pill above the bottom bar
+// instead — quiet, one at a time, and it never blocks a tap.
 const toasts = useToastStore()
 
 const ICONS = { success: 'check', error: 'close', warn: 'warning', info: 'bell' }
@@ -55,9 +57,52 @@ const ICONS = { success: 'check', error: 'close', warn: 'warning', info: 'bell' 
       </div>
     </TransitionGroup>
   </div>
+
+  <div
+    class="pointer-events-none fixed inset-x-0 bottom-[calc(var(--bottom-nav-h)+2.25rem)] z-[60] flex justify-center px-4 md:bottom-6 md:left-60"
+    aria-live="polite"
+  >
+    <Transition name="pill">
+      <div
+        v-if="toasts.mini"
+        :key="toasts.mini.id"
+        role="status"
+        class="flex max-w-[calc(100vw-2rem)] items-center gap-2 rounded-full bg-[var(--color-ink)]/90 py-2 pl-2.5 pr-4 text-[13px] font-semibold text-white shadow-lg backdrop-blur"
+      >
+        <span
+          class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent)]"
+        >
+          <Icon name="check" :size="12" />
+        </span>
+        <span class="truncate">{{ toasts.mini.text }}</span>
+      </div>
+    </Transition>
+  </div>
 </template>
 
 <style scoped>
+/* A repeat add swaps the pill in place: the old one fades out (taken out of
+   flow so the new one does not jump) while the new one pops in. */
+.pill-enter-active {
+  transition:
+    opacity 160ms ease-out,
+    transform 220ms cubic-bezier(0.2, 1.1, 0.4, 1);
+}
+.pill-leave-active {
+  transition:
+    opacity 140ms ease-in,
+    transform 140ms ease-in;
+  position: absolute;
+}
+.pill-enter-from {
+  opacity: 0;
+  transform: translateY(0.5rem) scale(0.96);
+}
+.pill-leave-to {
+  opacity: 0;
+  transform: translateY(0.25rem) scale(0.98);
+}
+
 .toast-success {
   --tone: #0d9488;
   --tone-soft: #f0fdfa;
