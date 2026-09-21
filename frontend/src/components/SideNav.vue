@@ -18,7 +18,7 @@ const allTabs = [
 const auth = useAuthStore()
 const router = useRouter()
 // Reports is owner-only (permissions matrix, P1) — hidden for sellers.
-// Profile settings (language, password, logout) are for everyone.
+// Profile settings (language, logout) are for everyone.
 const tabs = computed(() => allTabs.filter((tab) => !tab.role || auth.user?.role === tab.role))
 
 async function logout() {

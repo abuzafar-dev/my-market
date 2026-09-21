@@ -11,3 +11,8 @@ staticfiles/
 *.log
 db.sqlite3
 node_modules/
+
+# Local AI-tooling files, not part of the app
+.agents/
+.claude/
+skills-lock.json

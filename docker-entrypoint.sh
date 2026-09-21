@@ -9,4 +9,7 @@ case "$(echo "${SEED_DEMO:-false}" | tr '[:upper:]' '[:lower:]')" in
   true|1|yes) python manage.py seed_demo ;;
 esac
 
+# The fixed admin login (see ensure_admin); a no-op until a shop exists.
+python manage.py ensure_admin
+
 exec "$@"

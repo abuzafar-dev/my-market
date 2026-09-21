@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from apps.shops.models import Shop, User
 
+from .exceptions import BatchQtyTooLow, ProductInUse
 from .models import Batch, Product, WriteOff
 
 logger = logging.getLogger(__name__)
@@ -151,3 +152,47 @@ def write_off_batch(
         user.id,
     )
     return write_off
+
+
+@transaction.atomic
+def update_batch(*, shop: Shop, batch_id, qty_initial: Decimal | None = None, **fields) -> Batch:
+    """Correct a batch that was entered wrong (price, expiry, quantity).
+
+    Changing ``qty_initial`` moves ``qty_remaining`` by the same difference, so
+    what was already sold or written off stays accounted for; it cannot go below
+    what already left the batch. Past sales keep the cost/price they snapshotted."""
+    try:
+        batch = (
+            Batch.objects.select_for_update().select_related("product").get(pk=batch_id, shop=shop)
+        )
+    except Batch.DoesNotExist as exc:
+        raise Http404 from exc
+
+    if qty_initial is not None:
+        left = batch.qty_initial - batch.qty_remaining
+        if qty_initial < left:
+            raise BatchQtyTooLow(left)
+        batch.qty_remaining = qty_initial - left
+        batch.qty_initial = qty_initial
+        fields["qty_initial"] = qty_initial
+        fields["qty_remaining"] = batch.qty_remaining
+
+    for name, value in fields.items():
+        setattr(batch, name, value)
+    batch.save(update_fields=[*fields, "updated_at"])
+    return batch
+
+
+@transaction.atomic
+def delete_product(product: Product) -> None:
+    """Erase a product that was entered by mistake, with its stock batches.
+
+    A product that has been sold is refused — its receipts point at it, so it
+    can only be archived. Write-offs of its batches go with it."""
+    if product.sale_items.exists():
+        raise ProductInUse()
+    WriteOff.objects.filter(batch__product=product).delete()
+    product.batches.all().delete()
+    if product.image:
+        product.image.delete(save=False)
+    product.delete()

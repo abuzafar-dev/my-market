@@ -207,7 +207,6 @@ class AuthenticationRequiredTests(APITestCase):
             ("get", "/api/reports/low-stock/export/"),
             ("get", "/api/reports/unsold/export/"),
             ("get", "/api/settings/"),
-            ("post", "/api/auth/password/"),
             ("post", "/api/auth/logout/"),
         ]:
             with self.subTest(path=path):
@@ -409,27 +408,22 @@ class SessionRevocationTests(TwoShopsTestCase):
         client.cookies["refresh_token"] = cookie_value
         return client.post("/api/auth/refresh/", {}, format="json")
 
-    def test_changing_the_password_kills_every_older_refresh_token(self):
+    def test_there_is_no_password_change_endpoint(self):
         api = APIClient()
         login = api.post(
             "/api/auth/login/",
             {"phone": "+998901110001", "password": "Str0ng-pass!"},
             format="json",
         )
-        old_cookie = login.cookies["refresh_token"].value
-        access = login.json()["data"]["access"]
-        self.assertEqual(self.refresh_with(old_cookie).status_code, 200)
 
-        changed = api.post(
+        response = api.post(
             "/api/auth/password/",
             {"old_password": "Str0ng-pass!", "new_password": "An0ther-pass!"},
             format="json",
-            HTTP_AUTHORIZATION=f"Bearer {access}",
+            HTTP_AUTHORIZATION=f"Bearer {login.json()['data']['access']}",
         )
 
-        self.assertEqual(changed.status_code, 200)
-        self.assertEqual(self.refresh_with(old_cookie).status_code, 401)  # the stolen one is dead
-        self.assertEqual(self.refresh_with(changed.cookies["refresh_token"].value).status_code, 200)
+        self.assertEqual(response.status_code, 404)
 
     def test_logout_revokes_the_refresh_token(self):
         api = APIClient()

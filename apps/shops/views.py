@@ -14,7 +14,6 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.common.permissions import IsOwner
@@ -22,7 +21,6 @@ from apps.common.permissions import IsOwner
 from .models import User
 from .serializers import (
     LoginSerializer,
-    PasswordChangeSerializer,
     ShopSettingsSerializer,
     UserSerializer,
 )
@@ -136,29 +134,6 @@ class LogoutView(APIView):
 
         response = Response(status=status.HTTP_205_RESET_CONTENT)
         response.delete_cookie(REFRESH_COOKIE_NAME, path=REFRESH_COOKIE_PATH)
-        return response
-
-
-class PasswordChangeView(APIView):
-    """POST /api/auth/password/ — {old_password, new_password}."""
-
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request: Request) -> Response:
-        serializer = PasswordChangeSerializer(data=request.data, context={"request": request})
-        serializer.is_valid(raise_exception=True)
-
-        user = request.user
-        user.set_password(serializer.validated_data["new_password"])
-        user.save(update_fields=["password", "updated_at"])
-
-        # A changed password must cut off whoever had the old one: kill every
-        # refresh token this account ever got (a stolen cookie would otherwise
-        # keep working for its remaining 30 days) and hand this device a fresh one.
-        for outstanding in OutstandingToken.objects.filter(user=user):
-            BlacklistedToken.objects.get_or_create(token=outstanding)
-        response = Response({"detail": "Parol muvaffaqiyatli almashtirildi."})
-        _set_refresh_cookie(response, RefreshToken.for_user(user))
         return response
 
 

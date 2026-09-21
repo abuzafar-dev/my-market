@@ -21,16 +21,16 @@ DEMO_PASSWORD = "demo12345"
 
 # name, unit, barcode, category, cost (so'm), markup (so'm), stock, minimum stock
 PRODUCTS = [
-    ("Non", Product.Unit.PIECE, "4780000000011", "Non mahsulotlari", 2500, 500, 40, 10),
-    ("Sut 1 litr", Product.Unit.PIECE, "4780000000028", "Sut mahsulotlari", 9000, 1500, 24, 6),
-    ("Qatiq 0.5 litr", Product.Unit.PIECE, "4780000000035", "Sut mahsulotlari", 6000, 1000, 18, 5),
+    ("Non", Product.Unit.PIECE, "4780000000014", "Non mahsulotlari", 2500, 500, 40, 10),
+    ("Sut 1 litr", Product.Unit.PIECE, "4780000000021", "Sut mahsulotlari", 9000, 1500, 24, 6),
+    ("Qatiq 0.5 litr", Product.Unit.PIECE, "4780000000038", "Sut mahsulotlari", 6000, 1000, 18, 5),
     ("Shakar", Product.Unit.KG, None, "Oziq-ovqat", 12000, 1500, 50, 10),
     ("Un", Product.Unit.KG, None, "Oziq-ovqat", 6500, 1000, 80, 15),
     ("Guruch", Product.Unit.KG, None, "Oziq-ovqat", 14000, 2000, 60, 10),
     ("Osh yog'i 1 litr", Product.Unit.LITER, None, "Oziq-ovqat", 22000, 3000, 30, 5),
-    ("Choy 100 g", Product.Unit.PIECE, "4780000000042", "Ichimliklar", 8000, 2000, 36, 8),
+    ("Choy 100 g", Product.Unit.PIECE, "4780000000045", "Ichimliklar", 8000, 2000, 36, 8),
     ("Banan", Product.Unit.KG, None, "Meva-sabzavot", 16000, 4000, 20, 5),
-    ("Suv 1.5 litr", Product.Unit.PIECE, "4780000000059", "Ichimliklar", 2000, 500, 48, 12),
+    ("Suv 1.5 litr", Product.Unit.PIECE, "4780000000052", "Ichimliklar", 2000, 500, 48, 12),
 ]
 
 

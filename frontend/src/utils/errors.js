@@ -5,7 +5,6 @@ import { locale, t } from '@/i18n'
 // keyed on the exact text (or a pattern, for messages with numbers/names).
 const EXACT = {
   "Telefon raqam yoki parol noto'g'ri.": 'errors.bad_login',
-  "Joriy parol noto'g'ri.": 'errors.bad_old_password',
   'Bunday kategoriya topilmadi.': 'errors.category_missing',
   'Mahsulot topilmadi.': 'errors.product_missing',
   'Sessiya topilmadi.': 'errors.session_missing',
@@ -20,9 +19,15 @@ const EXACT = {
   'Faqat JPEG, PNG yoki WebP rasm mumkin.': 'errors.image_format',
   "Rasm o'lchami juda katta.": 'errors.image_dims',
   'Narx juda katta.': 'errors.price_big',
+  "Bu mahsulot sotilgan, o'chirib bo'lmaydi. Uni arxivlang.": 'errors.product_in_use',
 }
 
 const PATTERNS = [
+  [
+    /^Bu partiyadan (.+) allaqachon chiqqan, undan kam bo'lishi mumkin emas\.$/,
+    'errors.batch_qty_low',
+    ['n'],
+  ],
   [/^Partiyada faqat (.+) qoldi\.$/, 'errors.batch_stock', ['n']],
   [/^Omborda faqat (\S+) (.+) qoldi$/, 'errors.stock', ['n', 'unit']],
   [/^(.+): arxivlangan mahsulotni sotib bo'lmaydi\.$/, 'errors.archived', ['name']],
@@ -56,7 +61,6 @@ export function apiError(err) {
     }
   }
   if (CODES[error?.code]) return t(CODES[error.code])
-  if (error?.fields?.new_password) return t('errors.weak_password')
   if (error?.code === 'validation_error') return t('errors.validation')
   return t('common.error')
 }

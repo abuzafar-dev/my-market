@@ -3,7 +3,6 @@
 import re
 
 from django.contrib.auth import authenticate
-from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework.exceptions import Throttled
 
@@ -49,20 +48,6 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Telefon raqam yoki parol noto'g'ri.")
         attrs["user"] = user
         return attrs
-
-
-class PasswordChangeSerializer(serializers.Serializer):
-    old_password = serializers.CharField(write_only=True, max_length=MAX_PASSWORD)
-    new_password = serializers.CharField(write_only=True, max_length=MAX_PASSWORD)
-
-    def validate_old_password(self, value: str) -> str:
-        if not self.context["request"].user.check_password(value):
-            raise serializers.ValidationError("Joriy parol noto'g'ri.")
-        return value
-
-    def validate_new_password(self, value: str) -> str:
-        validate_password(value, user=self.context["request"].user)
-        return value
 
 
 class ShopSettingsSerializer(serializers.ModelSerializer):

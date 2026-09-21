@@ -52,9 +52,5 @@ export const useAuthStore = defineStore('auth', {
       this.user = null
       useCartStore().clear()
     },
-
-    async changePassword(oldPassword, newPassword) {
-      await api.post('/auth/password/', { old_password: oldPassword, new_password: newPassword })
-    },
   },
 })

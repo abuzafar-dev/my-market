@@ -182,3 +182,42 @@ class ProvisioningCommandTests(TestCase):
         self.assertEqual(products.count(), 10)
         self.assertEqual(Shop.objects.count(), 1)
         self.assertTrue(all(p.batches.filter(qty_remaining__gt=0).exists() for p in products))
+
+
+class EnsureAdminTests(TestCase):
+    def run_command(self):
+        from django.core.management import call_command
+
+        call_command("ensure_admin", stdout=StringIO())
+
+    def login(self, phone="777777777", password="admin1"):  # pragma: allowlist secret
+        return APIClient().post(
+            "/api/auth/login/", {"phone": phone, "password": password}, format="json"
+        )
+
+    def test_it_waits_until_a_shop_exists(self):
+        self.run_command()
+
+        self.assertFalse(User.objects.filter(phone="+998777777777").exists())
+
+    def test_the_admin_logs_in_as_owner_of_the_first_shop(self):
+        first = Shop.objects.create(name="Birinchi", phone="+998900000001")
+        Shop.objects.create(name="Ikkinchi", phone="+998900000002")
+
+        self.run_command()
+
+        response = self.login()
+        self.assertEqual(response.status_code, 200)
+        user = response.json()["data"]["user"]
+        self.assertEqual(user["role"], "owner")
+        self.assertEqual(user["shop_id"], str(first.id))
+
+    def test_rerunning_restores_the_password_and_access(self):
+        Shop.objects.create(name="Birinchi", phone="+998900000001")
+        self.run_command()
+        User.objects.filter(phone="+998777777777").update(password="x", is_active=False)
+
+        self.run_command()
+
+        self.assertEqual(self.login().status_code, 200)
+        self.assertEqual(User.objects.filter(phone="+998777777777").count(), 1)

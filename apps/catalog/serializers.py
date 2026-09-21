@@ -204,6 +204,40 @@ class BatchCreateSerializer(serializers.ModelSerializer):
         )
 
 
+class BatchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Batch
+        fields = [
+            "id",
+            "qty_initial",
+            "qty_remaining",
+            "cost_price",
+            "sale_price",
+            "expires_at",
+            "received_at",
+        ]
+
+
+class BatchUpdateSerializer(serializers.ModelSerializer):
+    """PATCH /api/batches/{id}/ — fix a wrongly entered price, quantity or expiry."""
+
+    class Meta:
+        model = Batch
+        fields = ["qty_initial", "cost_price", "sale_price", "expires_at"]
+        extra_kwargs = {
+            "sale_price": {"max_value": MAX_PRICE},
+            "cost_price": {"max_value": MAX_PRICE},
+            "qty_initial": {"max_value": MAX_QTY},
+        }
+
+    def validate_qty_initial(self, qty):
+        if requires_whole_number(self.instance.product.unit, qty):
+            raise serializers.ValidationError(
+                "Dona hisobidagi mahsulot uchun miqdor butun son bo'lishi kerak."
+            )
+        return qty
+
+
 class WriteOffInputSerializer(serializers.Serializer):
     qty = serializers.DecimalField(
         max_digits=12, decimal_places=3, min_value=Decimal("0.001"), max_value=MAX_QTY

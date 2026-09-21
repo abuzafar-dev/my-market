@@ -12,6 +12,7 @@ router.register("categories", views.CategoryViewSet, basename="category")
 urlpatterns = [
     path("", include(router.urls)),
     path("batches/", views.BatchCreateView.as_view(), name="batch-create"),
+    path("batches/<uuid:pk>/", views.BatchDetailView.as_view(), name="batch-detail"),
     path("batches/<uuid:pk>/writeoff/", views.BatchWriteOffView.as_view(), name="batch-writeoff"),
     path("purchase-list/", views.PurchaseListView.as_view(), name="purchase-list"),
 ]

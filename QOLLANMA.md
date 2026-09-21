@@ -523,6 +523,51 @@ qoldiring — sotuvda nomi bilan qidirib topiladi. Saqlagandan keyin
 **Kirim** sahifasi ochiladi: qancha kelgani, tannarxi va (bo'lsa) yaroqlilik
 muddatini yozing. Ombor qoldig'i faqat kirimlardan hisoblanadi.
 
+### Kamera skaneri
+
+Skaner faqat ramka ichidagi kodni o'qiydi, tekshiruv raqami (kontrol raqam)
+noto'g'ri kodni qabul qilmaydi va bir xil natija ketma-ket chiqmaguncha
+ishonmaydi — shuning uchun boshqa mahsulotni adashib o'qimaydi. Ramkada ikkita
+shtrix-kod bo'lsa, "bittasini qoldiring" deb so'raydi. Tepada o'ngdagi
+**fonar** tugmasi doim turadi; yoqilgani keyingi safar ham eslab qolinadi.
+
+> **iPhone'da fonar:** Safari brauzeri veb-sahifaga fonarni boshqarishga
+> ruxsat bermaydi — bu telefon cheklovi, dasturdan tuzatib bo'lmaydi. Tugma
+> bosilsa, buni aytadi; telefonning o'z fonarini (Boshqaruv markazi) yoqing.
+> Android (Chrome)da fonar ishlaydi.
+
+Demo mahsulotlarning shtrix-kodlari haqiqiy tekshiruv raqami bilan yaratiladi
+(`4780000000014` va h.k.), shuning uchun ularni chop etib kameraga ko'rsatib
+sinash mumkin. Eski demo bazada kodlar to'qib chiqarilgan (tekshiruv raqami
+noto'g'ri) — kamera ularni qabul qilmaydi; yangi demo yoki haqiqiy mahsulot bilan sinang.
+
+### Lazerli (qo'lda ushlanadigan) skaner
+
+Do'kon egasi lazerli/USB/Bluetooth skaner olsa, **hech narsa o'rnatish shart
+emas**: bunday skaner kompyuterga *klaviatura* bo'lib ulanadi va har skanerlashda
+raqamlarni tez yozib, oxirida Enter bosadi. Ilova buni odam yozishidan ajratib,
+kamera skaneri kabi ishlatadi.
+
+1. **Sotib olayotganda:** "USB HID / Keyboard mode" (yoki "Bluetooth HID")
+   yozuvi bo'lsin; **EAN-13** ni o'qisin. Lazerli 1D skaner arzon va tez;
+   telefon ekranidagi kodni ham o'qishi kerak bo'lsa **2D (imager)** oling.
+2. **Ulash:** USB — kompyuter/noutbukka (yoki telefon/planshetga OTG orqali)
+   ulaysiz. Bluetooth — skanerni ulanish rejimiga o'tkazib, telefon/kompyuter
+   Bluetooth sozlamasidan juftlaysiz.
+3. **Ishlatish:** ilovani oching va shtrix-kodga yo'naltirib tugmani bosing.
+   - Sotuv sahifasida (va istalgan sahifada) mahsulot **savatga tushadi**.
+   - **Yangi mahsulot / tahrirlash** sahifasida kod **Shtrix-kod** maydoniga yoziladi.
+   - **Kirim** sahifasida mahsulot tanlanadi.
+   - Kod bazada bo'lmasa, egasiga yangi mahsulot ochish taklif qilinadi.
+4. **Sinash:** skanerni ulab, qidiruv maydoniga bosing va skanerlang — raqamlar
+   chiqsa, skaner to'g'ri ishlayapti.
+
+Skaner ishlamasa: (a) skanerlaganda oxirida **Enter** yubormayotgan bo'lishi
+mumkin — skaner qo'llanmasidagi "suffix: Enter (CR)" shtrix-kodini skanerlang
+(Enter'siz ham 8+ belgili kodlar ishlaydi, lekin Enter ishonchliroq);
+(b) skaner juda sekin yozsa (belgilar orasi 70 ms dan ko'p) odam yozishi deb
+hisoblanadi; (c) klaviatura tili **Lotin (EN)** bo'lsin.
+
 ### Hisobotdan fayl olish
 
 **Hisobot** → yuqorida **Kunlik / Haftalik / Oylik** ni tanlang → pastdagi
@@ -532,10 +577,32 @@ yoki kompyuterning **Yuklamalar (Downloads)** papkasiga tushadi.
 - **Excel** — 4 varaq: xulosa, kunlar bo'yicha, har bir chek, mahsulotlar bo'yicha.
 - **CSV** — faqat kunlar jadvali (Excel yoki Google Sheets'da ochiladi).
 
-### Til, parol, chiqish
+### Til, chiqish
 
 👤 → **Profil sozlamalari**: til (O'zbekcha / Русский), ogohlantirish kunlari
-(egasi), parolni almashtirish, **Chiqish**.
+(egasi), **Chiqish**. Ilovadan parolni almashtirib bo'lmaydi.
+
+### Xato kiritilgan mahsulotni tuzatish (egasi)
+
+**Mahsulotlar** → mahsulotni oching:
+
+- Nomi, kategoriyasi, birligi, shtrix-kodi — yuqoridagi shaklda, **Saqlash**.
+- Saqlash muddati, narxlar va miqdor — pastdagi **Kirimlar** ro'yxatida, kirim
+  yonidagi **Tahrirlash**. Miqdorni o'zgartirsangiz, allaqachon sotilgani
+  hisobga olinadi (sotilganidan kam qilib bo'lmaydi).
+- **O'chirib tashlash** — mahsulot va uning kirimlari butunlay o'chadi.
+  Mahsulot sotuvda qatnashgan bo'lsa o'chirilmaydi — uni **Arxivlash** kerak.
+
+### Doimiy admin
+
+Ilova har ishga tushganda `manage.py ensure_admin` ishlaydi: telefon
+`777777777`, parol `admin1` (egasi huquqlari, eng birinchi do'kon). Admin
+saytga kirib do'kondagi hamma narsani ko'rib turadi. Parol o'zgarmaydi —
+qo'lda o'zgartirilsa ham keyingi ishga tushishda `admin1`ga qaytadi.
+Do'kon hali yaratilmagan bo'lsa, admin do'kon paydo bo'lgach yaratiladi.
+
+> ⚠️ `admin1` — hammaga oson topiladigan parol. Server internetda bo'lsa,
+> bu akkaunt orqali kim xohlasa do'kon ma'lumotlarini ko'ra oladi.
 
 ### Rollar
 
@@ -616,7 +683,8 @@ Mahalliy dasturchi rejimida admin doim yoqilgan: `https://localhost:8000/admin/`
 **Mahsulotni o'chirish o'rniga arxivlash:** mahsulot sotuvda qatnashgan
 bo'lsa, o'chirib bo'lmaydi (tarix buzilmasligi uchun). Ilovada mahsulot
 sahifasidagi **Arxivlash** tugmasi uni ro'yxat va sotuvdan yashiradi, lekin
-eski cheklar va hisobotlar saqlanadi.
+eski cheklar va hisobotlar saqlanadi. Sotilmagan (xato kiritilgan) mahsulotni
+esa shu sahifadagi **O'chirib tashlash** butunlay o'chiradi.
 
 ---
 
@@ -631,6 +699,8 @@ eski cheklar va hisobotlar saqlanadi.
 | Admin panelga kirganda "CSRF verification failed" | `CSRF_TRUSTED_ORIGINS` da `https://domen` yo'q. |
 | Sayt "too many redirects" | Caddy o'rnatilmagan/ishlamayapti, yoki `.env`da `SECURE_SSL_REDIRECT=True` bo'lib, sayt HTTP orqali ochilyapti. HTTPS orqali oching. |
 | Mahsulot rasmlari chiqmaydi | `docker compose ps` da `frontend` Up ekanini tekshiring; rasm faylini yuklab ko'ring (`/media/...`). |
+| Kamerada fonar tugmasi bosilsa "brauzer yoqa olmaydi" deydi | iPhone/Safari cheklovi. Telefonning o'z fonarini yoqing. Android Chrome'da ishlaydi |
+| Kamera eski demo mahsulotni o'qimaydi | Eski demo kodlarining tekshiruv raqami noto'g'ri. Haqiqiy mahsulot yoki yangi demo bilan sinang |
 | Telefonda kamera / skaner ishlamaydi | Sayt **https://** bilan ochilganini tekshiring. Kamera faqat HTTPS'da beriladi. |
 | Telefonda sayt ochilmaydi (mahalliy rejim) | Telefon va kompyuter bir xil **Wi-Fi**da bo'lsin, `./scripts/dev.sh` ishlab tursin. |
 | Login: "Juda ko'p urinish qilindi" | 5 marta noto'g'ri parol kiritildi — shu qurilma 15 daqiqaga bloklandi. Kuting yoki: `docker compose exec backend python manage.py shell -c "from django.core.cache import cache; cache.clear()"` |

@@ -12,6 +12,7 @@ import { t } from '@/i18n'
 import { useToastStore } from '@/stores/toast'
 import { unitMeta } from '@/utils/units'
 import { apiError } from '@/utils/errors'
+import { useBarcodeHandler } from '@/utils/hardwareScanner'
 
 const route = useRoute()
 const router = useRouter()
@@ -62,6 +63,12 @@ async function onBarcodeDetected(code) {
     }
   }
 }
+
+// A laser scanner picks the product the same way the camera does.
+useBarcodeHandler((code) => {
+  onBarcodeDetected(code)
+  return true
+})
 
 async function save() {
   if (!selectedProduct.value) {

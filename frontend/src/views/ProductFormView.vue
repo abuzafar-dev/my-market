@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import api from '@/api/client'
 import BarcodeScanner from '@/components/BarcodeScanner.vue'
+import BatchEditor from '@/components/BatchEditor.vue'
 import Icon from '@/components/Icon.vue'
 import FieldLabel from '@/components/FieldLabel.vue'
 import InfoHint from '@/components/InfoHint.vue'
@@ -12,6 +13,7 @@ import PhotoCapture from '@/components/PhotoCapture.vue'
 import { t } from '@/i18n'
 import { useToastStore } from '@/stores/toast'
 import { apiError } from '@/utils/errors'
+import { useBarcodeHandler } from '@/utils/hardwareScanner'
 
 const props = defineProps({ id: String })
 const route = useRoute()
@@ -54,6 +56,12 @@ function onBarcodeDetected(code) {
   form.value.barcode = code
   showScanner.value = false
 }
+
+// A laser scanner fills the barcode field, on whatever field has focus.
+useBarcodeHandler((code) => {
+  onBarcodeDetected(code)
+  return true
+})
 
 async function loadCategories() {
   const response = await api.get('/categories/')
@@ -135,6 +143,17 @@ async function archive() {
   try {
     await api.post(`/products/${props.id}/archive/`)
     toast.success(t('product_form.archived'))
+    router.push({ name: 'products' })
+  } catch (err) {
+    toast.error(apiError(err))
+  }
+}
+
+async function remove() {
+  if (!confirm(t('product_form.delete_confirm'))) return
+  try {
+    await api.delete(`/products/${props.id}/`)
+    toast.success(t('product_form.deleted'))
     router.push({ name: 'products' })
   } catch (err) {
     toast.error(apiError(err))
@@ -284,13 +303,23 @@ async function archive() {
       <Icon name="plus" :size="18" />
       {{ t('product_form.add_stock') }}
     </RouterLink>
+    <BatchEditor v-if="isEdit" :product-id="props.id" :unit="form.unit" />
     <button
       v-if="isEdit"
       type="button"
-      class="mt-3 w-full rounded-lg border border-[var(--color-danger)]/25 bg-[var(--color-danger-soft)] py-3 font-bold text-[var(--color-danger)]"
+      class="mt-5 w-full rounded-lg border border-[var(--color-danger)]/25 bg-[var(--color-danger-soft)] py-3 font-bold text-[var(--color-danger)]"
       @click="archive"
     >
       {{ t('product_form.archive') }}
+    </button>
+    <button
+      v-if="isEdit"
+      type="button"
+      class="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--color-danger)] py-3 font-bold text-white"
+      @click="remove"
+    >
+      <Icon name="trash" :size="17" />
+      {{ t('product_form.delete') }}
     </button>
   </div>
 </template>

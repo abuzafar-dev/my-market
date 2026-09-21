@@ -1,9 +1,11 @@
 <script setup>
-import { watch } from 'vue'
+import { onBeforeUnmount, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import BarcodeScanner from '@/components/BarcodeScanner.vue'
 import { usePickerStore } from '@/stores/picker'
+import { warmUp } from '@/utils/decoder'
+import { dispatchBarcode, listenForScanner } from '@/utils/hardwareScanner'
 
 // Phone scanner: a panel that slides in just above the bottom bar (not a
 // full-screen takeover), opened from the always-visible scan button so a
@@ -21,6 +23,28 @@ async function onDetected(code) {
   picker.closeScanner()
   await picker.pickByBarcode(code)
 }
+
+// A laser scanner (USB / Bluetooth) types like a keyboard, so it works on
+// every page: the page that owns a barcode field takes the code, otherwise it
+// goes into the cart like a camera scan. While the weight sheet is open a
+// stray scan is dropped instead of adding a second product.
+async function onHardwareScan(code) {
+  if (picker.kgProduct) return
+  if (dispatchBarcode(code)) return
+  await picker.pickByBarcode(code)
+}
+
+let stopListening = null
+onMounted(() => {
+  stopListening = listenForScanner(onHardwareScan)
+  // Fetch the camera decoder in a quiet moment, so the first camera scan of
+  // the day doesn't wait for it.
+  if (navigator.mediaDevices?.getUserMedia) {
+    const idle = window.requestIdleCallback ?? ((callback) => setTimeout(callback, 2000))
+    idle(() => warmUp().catch(() => {}))
+  }
+})
+onBeforeUnmount(() => stopListening?.())
 </script>
 
 <template>

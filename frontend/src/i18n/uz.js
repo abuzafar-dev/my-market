@@ -76,6 +76,9 @@ export default {
     found: 'Topildi',
     aim: 'Shtrix-kodni ramka ichiga joylang',
     torch: 'Fonar',
+    torch_unsupported:
+      "Bu qurilmada brauzer fonarni yoqa olmaydi. Telefonning o'z fonarini yoqing.",
+    multiple: 'Ramkada bir nechta shtrix-kod bor — bittasini qoldiring',
     close: 'Yopish',
   },
 
@@ -158,6 +161,10 @@ export default {
     add_stock: 'Kirim qilish',
     archive: 'Arxivlash',
     archive_confirm: 'Mahsulotni arxivlashni tasdiqlaysizmi?',
+    delete: "O'chirib tashlash",
+    delete_confirm:
+      "Mahsulot va uning barcha kirimlari butunlay o'chiriladi. Buni qaytarib bo'lmaydi. Davom etasizmi?",
+    deleted: "Mahsulot o'chirildi",
     saved: 'Mahsulot saqlandi',
     archived: 'Mahsulot arxivlandi',
     category_added: "Kategoriya qo'shildi",
@@ -186,6 +193,14 @@ export default {
     saved: 'Kirim saqlandi',
     pick_required: 'Mahsulotni tanlang.',
     search_placeholder: 'Mahsulot nomini yozing...',
+    list_title: 'Kirimlar',
+    none: "Hozircha kirim yo'q",
+    left: 'Qolgan: {left} / {total}',
+    cost_short: 'Kirim',
+    price: 'Sotuv narxi',
+    no_expiry: "Muddat yo'q",
+    edit: 'Tahrirlash',
+    updated: 'Kirim yangilandi',
   },
 
   debt: {
@@ -285,11 +300,6 @@ export default {
     expiry: 'Ogohlantirish chegarasi (kun)',
     expiry_hint: 'Muddati tugashiga shuncha kun qolganda bildirish beriladi',
     saved: 'Sozlamalar saqlandi',
-    password: "Parolni o'zgartirish",
-    old_password: 'Joriy parol',
-    new_password: 'Yangi parol',
-    change: 'Almashtirish',
-    password_changed: 'Parol almashtirildi',
     logout: 'Chiqish',
     logout_hint: 'Bu qurilmadagi seansni yopadi',
     logged_out: 'Tizimdan chiqdingiz',
@@ -305,9 +315,7 @@ export default {
   errors: {
     network: "Serverga ulanib bo'lmadi. Internetni tekshiring.",
     validation: "Kiritilgan ma'lumotlarni tekshiring.",
-    weak_password: 'Yangi parol mos emas: juda qisqa yoki oddiy.',
     bad_login: "Telefon raqam yoki parol noto'g'ri.",
-    bad_old_password: "Joriy parol noto'g'ri.",
     category_missing: 'Bunday kategoriya topilmadi.',
     product_missing: 'Mahsulot topilmadi.',
     session_missing: 'Sessiya topilmadi.',
@@ -330,6 +338,8 @@ export default {
     image_format: 'Faqat JPEG, PNG yoki WebP rasm mumkin.',
     image_dims: "Rasm o'lchami juda katta.",
     price_big: 'Narx juda katta.',
+    product_in_use: "Bu mahsulot sotilgan, o'chirib bo'lmaydi. Uni arxivlang.",
+    batch_qty_low: "Bu partiyadan {n} allaqachon chiqqan, undan kam bo'lishi mumkin emas.",
   },
 
   lang: {

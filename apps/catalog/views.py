@@ -12,9 +12,11 @@ from rest_framework.views import APIView
 
 from apps.common.permissions import IsOwner
 
-from .models import Category, Product
+from .models import Batch, Category, Product
 from .serializers import (
     BatchCreateSerializer,
+    BatchSerializer,
+    BatchUpdateSerializer,
     CategorySerializer,
     ProductSerializer,
     ProductWithExpirySerializer,
@@ -23,9 +25,11 @@ from .serializers import (
 )
 from .services import (
     InsufficientBatchStock,
+    delete_product,
     expiring_batches,
     low_stock_products,
     quick_products,
+    update_batch,
     with_price,
     with_stock,
     write_off_batch,
@@ -43,13 +47,14 @@ class CategoryViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, viewsets.G
 
 
 class ProductViewSet(viewsets.ModelViewSet):
-    # No PUT/DELETE: products are archived (is_active=False), never replaced or deleted.
-    http_method_names = ["get", "post", "patch", "head", "options"]
+    # No PUT: products are patched in place. DELETE erases one entered by
+    # mistake (refused once it has been sold — then it is archived instead).
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
     def get_permissions(self):
         # Sellers may browse products/stock, but only owners create, edit,
-        # or archive them (permissions matrix, P1).
-        if self.action in {"create", "partial_update", "archive"}:
+        # archive, or delete them (permissions matrix, P1).
+        if self.action in {"create", "partial_update", "archive", "destroy", "batches"}:
             return [IsAuthenticated(), IsOwner()]
         return super().get_permissions()
 
@@ -108,6 +113,17 @@ class ProductViewSet(viewsets.ModelViewSet):
             return self.get_paginated_response(serializer.data)
         return Response(serializer.data)
 
+    def destroy(self, request, *args, **kwargs):
+        delete_product(self.get_object())
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["get"])
+    def batches(self, request, pk=None):
+        """The product's stock batches, newest first — what the owner edits."""
+        product = self.get_object()
+        batches = product.batches.order_by("-received_at")[:100]
+        return Response(BatchSerializer(batches, many=True).data)
+
     @action(detail=True, methods=["post"])
     def archive(self, request, pk=None):
         product = self.get_object()
@@ -132,6 +148,23 @@ class BatchCreateView(CreateAPIView):
 
     permission_classes = [IsAuthenticated, IsOwner]
     serializer_class = BatchCreateSerializer
+
+
+class BatchDetailView(APIView):
+    """PATCH /api/batches/{id}/ — correct a wrongly entered price, quantity or expiry."""
+
+    permission_classes = [IsAuthenticated, IsOwner]
+
+    def patch(self, request, pk=None):
+        batch = (
+            Batch.objects.filter(pk=pk, shop=request.user.shop).select_related("product").first()
+        )
+        if batch is None:
+            raise Http404
+        serializer = BatchUpdateSerializer(batch, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        batch = update_batch(shop=request.user.shop, batch_id=pk, **serializer.validated_data)
+        return Response(BatchSerializer(batch).data)
 
 
 class BatchWriteOffView(APIView):

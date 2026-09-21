@@ -5,7 +5,7 @@ anonymous caller get. If a view changes who may use it, this table fails —
 that is the point: role logic is a rule written down here, not an accident
 of which decorator a view happens to carry.
 
-Owner-only: products create/edit/archive, batches (kirim) and write-offs,
+Owner-only: products create/edit/archive/delete, batches (kirim) and write-offs,
 reports and exports, settings. Everything else is open to both roles, and a
 seller additionally never sees cost data (see HiddenCostDataTests) and may
 only cancel their own receipt from today (see CancelRuleTests).
@@ -92,6 +92,10 @@ class RoleMatrixTests(RoleFixtureMixin, TestCase):
     def matrix(self):
         """(method, url, payload, owner status, seller status)."""
         p, b, c = self.product, self.batch, self.customer
+        # Never sold, so deleting it is allowed (p is sold by the sale row below).
+        spare = Product.objects.create(
+            shop=self.shop, name="Ortiqcha", unit=Product.Unit.PIECE, min_stock=Decimal("1")
+        )
         sale = {
             "client_id": str(uuid4()),
             "payment_type": "cash",
@@ -113,13 +117,6 @@ class RoleMatrixTests(RoleFixtureMixin, TestCase):
             ("POST", f"/api/customers/{c.id}/debt/", {"amount": 100}, 200, 200),
             ("POST", f"/api/customers/{c.id}/payment/", {"amount": 50}, 200, 200),
             ("GET", "/api/dashboard/", None, 200, 200),
-            (
-                "POST",
-                "/api/auth/password/",
-                {"old_password": "pass1234", "new_password": "Yangi-parol-2026"},
-                200,
-                200,
-            ),
             # ---- owner only
             (
                 "POST",
@@ -143,6 +140,9 @@ class RoleMatrixTests(RoleFixtureMixin, TestCase):
                 201,
                 403,
             ),
+            ("GET", f"/api/products/{p.id}/batches/", None, 200, 403),
+            ("PATCH", f"/api/batches/{b.id}/", {"expires_at": "2030-01-01"}, 200, 403),
+            ("DELETE", f"/api/products/{spare.id}/", None, 204, 403),
             ("GET", "/api/reports/", None, 200, 403),
             ("GET", "/api/reports/export/", None, 200, 403),
             ("GET", "/api/reports/low-stock/export/", None, 200, 403),

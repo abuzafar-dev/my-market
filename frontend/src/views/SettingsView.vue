@@ -60,24 +60,6 @@ async function save() {
   }
 }
 
-const oldPassword = ref('')
-const newPassword = ref('')
-const changingPassword = ref(false)
-
-async function changePassword() {
-  changingPassword.value = true
-  try {
-    await auth.changePassword(oldPassword.value, newPassword.value)
-    toast.success(t('settings.password_changed'))
-    oldPassword.value = ''
-    newPassword.value = ''
-  } catch (err) {
-    toast.error(apiError(err))
-  } finally {
-    changingPassword.value = false
-  }
-}
-
 const loggingOut = ref(false)
 async function logout() {
   loggingOut.value = true
@@ -176,42 +158,12 @@ async function logout() {
         </div>
       </SectionCard>
 
-      <!-- Password -->
-      <SectionCard class="rise" style="--i: 3" icon="lock" :title="t('settings.password')">
-        <form class="space-y-2" @submit.prevent="changePassword">
-          <input
-            v-model="oldPassword"
-            type="password"
-            autocomplete="current-password"
-            :placeholder="t('settings.old_password')"
-            required
-            class="w-full rounded-lg border border-[var(--color-line)] px-3 py-2.5"
-          />
-          <input
-            v-model="newPassword"
-            type="password"
-            autocomplete="new-password"
-            :placeholder="t('settings.new_password')"
-            required
-            class="w-full rounded-lg border border-[var(--color-line)] px-3 py-2.5"
-          />
-          <button
-            type="submit"
-            :disabled="changingPassword"
-            class="flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--color-ink)] py-2.5 font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
-          >
-            <Icon name="key" :size="17" />
-            {{ changingPassword ? t('common.loading') : t('settings.change') }}
-          </button>
-        </form>
-      </SectionCard>
-
       <!-- Logout -->
       <button
         type="button"
         :disabled="loggingOut"
         class="rise flex w-full items-center gap-3 rounded-2xl border border-[var(--color-danger)]/25 bg-[var(--color-danger-soft)] p-3 text-left text-[var(--color-danger)] transition active:scale-[0.99] disabled:opacity-50"
-        style="--i: 4"
+        style="--i: 3"
         @click="logout"
       >
         <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white">

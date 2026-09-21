@@ -8,6 +8,7 @@ import {
   KeyRound,
   Lock,
   Pencil,
+  Trash2,
   Percent,
   Phone,
   Ruler,
@@ -97,6 +98,7 @@ const icons = {
   wallet: Wallet,
   ruler: Ruler,
   pencil: Pencil,
+  trash: Trash2,
 }
 </script>
 
