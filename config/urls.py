@@ -40,6 +40,4 @@ if settings.DEBUG:
     ]
 
 if settings.DEBUG:
-    # Product photos: served by nginx/whitenoise-equivalent in production,
-    # but Django needs to do it itself in dev.
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
