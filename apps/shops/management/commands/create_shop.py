@@ -17,6 +17,10 @@ from django.db import transaction
 
 from apps.shops.models import Shop, ShopSettings, User
 
+WEAK_PASSWORD_NOTICE = (
+    "Diqqat: parol xavfsizlik tekshiruvisiz o'rnatildi — uzunroq parol tavsiya etiladi."
+)
+
 
 def _generate_password(length: int = 12) -> str:
     alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
@@ -34,6 +38,11 @@ class Command(BaseCommand):
             "--password",
             help="Egasining paroli (bermasangiz, tasodifiy vaqtinchalik parol yaratiladi)",
         )
+        parser.add_argument(
+            "--allow-weak-password",
+            action="store_true",
+            help="Serverda ham qisqa/oddiy parolga ruxsat berish (xavfsizlik tekshiruvini o'chiradi)",
+        )
 
     def handle(self, *args: Any, **options: Any) -> None:
         shop_name: str = options["shop_name"]
@@ -44,7 +53,9 @@ class Command(BaseCommand):
             raise CommandError(f"'{phone}' raqami bilan foydalanuvchi allaqachon mavjud.")
 
         given_password: str | None = options.get("password")
-        if given_password and not settings.DEBUG:  # a real server gets a real password
+        allow_weak: bool = options["allow_weak_password"]
+        if given_password and not settings.DEBUG and not allow_weak:
+            # a real server gets a real password unless the operator opts out
             try:
                 validate_password(given_password)
             except ValidationError as exc:
@@ -67,6 +78,8 @@ class Command(BaseCommand):
         self.stdout.write(f"Egasi: {full_name} ({phone})")
         if given_password:
             self.stdout.write("Parol: siz bergan parol o'rnatildi.")
+            if allow_weak:
+                self.stdout.write(self.style.WARNING(WEAK_PASSWORD_NOTICE))
         else:
             self.stdout.write(self.style.WARNING(f"Vaqtinchalik parol: {password}"))
             self.stdout.write(

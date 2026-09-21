@@ -172,6 +172,11 @@ docker compose exec backend python manage.py create_shop \
 > faqat raqamlar, ism/telefonga o'xshash parollar rad etiladi). Yaxshi
 > parol: 12+ belgi, harf + raqam aralash. `--password` bermasangiz,
 > tasodifiy vaqtinchalik parol chiqadi va **faqat bir marta** ko'rsatiladi.
+>
+> Qisqa/oddiy parol kerak bo'lsa, `create_shop` va `add_user` ga
+> `--allow-weak-password` qo'shing — parol tekshiruvi o'tkazib yuboriladi.
+> Bu parolni taxmin qilishni osonlashtiradi, shuning uchun faqat ongli
+> ravishda ishlating.
 
 ### Qadam 8 — Kiring va tekshiring
 

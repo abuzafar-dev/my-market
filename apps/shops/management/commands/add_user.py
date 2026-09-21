@@ -14,6 +14,10 @@ from django.core.management.base import BaseCommand, CommandError
 
 from apps.shops.models import User
 
+WEAK_PASSWORD_NOTICE = (
+    "Diqqat: parol xavfsizlik tekshiruvisiz o'rnatildi — uzunroq parol tavsiya etiladi."
+)
+
 
 class Command(BaseCommand):
     help = "Mavjud do'konga yangi sotuvchi (yoki ega) qo'shadi."
@@ -26,6 +30,11 @@ class Command(BaseCommand):
         parser.add_argument(
             "--role", choices=[User.Role.SELLER, User.Role.OWNER], default=User.Role.SELLER
         )
+        parser.add_argument(
+            "--allow-weak-password",
+            action="store_true",
+            help="Serverda ham qisqa/oddiy parolga ruxsat berish (xavfsizlik tekshiruvini o'chiradi)",
+        )
 
     def handle(self, *args: Any, **options: Any) -> None:
         try:
@@ -36,7 +45,9 @@ class Command(BaseCommand):
         if User.objects.filter(phone=options["phone"]).exists():
             raise CommandError(f"'{options['phone']}' raqami allaqachon band.")
 
-        if not settings.DEBUG:  # a real server gets a real password
+        allow_weak: bool = options["allow_weak_password"]
+        if not settings.DEBUG and not allow_weak:
+            # a real server gets a real password unless the operator opts out
             try:
                 validate_password(options["password"])
             except ValidationError as exc:
@@ -54,3 +65,5 @@ class Command(BaseCommand):
                 f"{options['full_name']} ({options['phone']}) qo'shildi: {owner.shop.name}"
             )
         )
+        if allow_weak:
+            self.stdout.write(self.style.WARNING(WEAK_PASSWORD_NOTICE))

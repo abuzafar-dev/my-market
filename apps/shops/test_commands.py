@@ -11,6 +11,7 @@ from apps.shops.models import Shop, ShopSettings, User
 
 OWNER_PHONE = "+998772874307"
 STRONG = "Kuchli-Parol-2026"  # pragma: allowlist secret
+WEAK = "admin1"  # pragma: allowlist secret
 
 
 def make_shop_with_owner():
@@ -37,6 +38,19 @@ class CreateShopCommandTests(TestCase):
         password = out.getvalue().split("Vaqtinchalik parol: ")[1].splitlines()[0]
         self.assertGreaterEqual(len(password), 12)
         self.assertTrue(user.check_password(password))
+
+    def test_a_weak_password_is_refused_unless_explicitly_allowed(self):
+        options = {"shop_name": "Yangi", "phone": OWNER_PHONE, "full_name": "Egasi"}
+
+        with self.assertRaises(CommandError):
+            call_command("create_shop", password=WEAK, stdout=StringIO(), **options)
+        self.assertEqual(Shop.objects.count(), 0)
+
+        out = StringIO()
+        call_command("create_shop", password=WEAK, allow_weak_password=True, stdout=out, **options)
+
+        self.assertTrue(User.objects.get(phone=OWNER_PHONE).check_password(WEAK))
+        self.assertIn("xavfsizlik tekshiruvisiz", out.getvalue())
 
     def test_the_owner_can_use_the_admin(self):
         self.assertTrue(make_shop_with_owner().is_staff)
@@ -96,6 +110,17 @@ class AddUserCommandTests(TestCase):
             self.add(password="1")
 
         self.assertFalse(User.objects.filter(phone="+998907654321").exists())
+
+    def test_a_weak_password_needs_the_explicit_flag(self):
+        make_shop_with_owner()
+
+        with self.assertRaises(CommandError):
+            self.add(password=WEAK, role=User.Role.OWNER)
+        self.assertFalse(User.objects.filter(phone="+998907654321").exists())
+
+        self.add(password=WEAK, role=User.Role.OWNER, allow_weak_password=True)
+
+        self.assertTrue(User.objects.get(phone="+998907654321").check_password(WEAK))
 
     def test_a_second_owner_can_be_added(self):
         owner = make_shop_with_owner()
