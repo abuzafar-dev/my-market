@@ -155,6 +155,9 @@ class QuickProductsStockTests(CatalogTestCase):
     (2 batches x 3 sales showed 3x the real stock on the sale screen)."""
 
     def sell(self, qty):
+        return self.sell_product(self.product, qty)
+
+    def sell_product(self, product, qty):
         from uuid import uuid4
 
         from apps.sales.models import Sale
@@ -166,7 +169,7 @@ class QuickProductsStockTests(CatalogTestCase):
             client_id=uuid4(),
             payment_type=Sale.PaymentType.CASH,
             customer=None,
-            cart=[CartLine(product=self.product, qty=Decimal(qty))],
+            cart=[CartLine(product=product, qty=Decimal(qty))],
         )
 
     def stock_on_quick_tile(self):
@@ -211,6 +214,39 @@ class QuickProductsStockTests(CatalogTestCase):
 
         self.assertEqual(names, ["Suv", "Aaa"])
         self.assertEqual(other.name, "Aaa")
+
+    def test_only_barcodeless_products_and_ranked_by_number_of_sales(self):
+        from apps.catalog.services import quick_products
+
+        scanned = Product.objects.create(
+            shop=self.shop,
+            name="Coca-Cola",
+            barcode="4780000000001",
+            unit="piece",
+            markup_amount=1000,
+            min_stock=Decimal("1"),
+        )
+        rare = Product.objects.create(
+            shop=self.shop, name="Aaa", unit="piece", markup_amount=1000, min_stock=Decimal("1")
+        )
+        for product in (scanned, rare):
+            Batch.objects.create(
+                shop=self.shop,
+                product=product,
+                qty_initial=Decimal("50"),
+                qty_remaining=Decimal("50"),
+                cost_price=1000,
+                sale_price=2000,
+            )
+        self.make_batch(qty=Decimal("50"))
+        self.sell("1")
+        self.sell("1")  # Suv: two sales of 1
+        self.sell_product(rare, "20")  # Aaa: one big sale — more qty, fewer uses
+        self.sell_product(scanned, "1")
+
+        names = [p.name for p in quick_products(self.shop)]
+
+        self.assertEqual(names, ["Suv", "Aaa"])
 
 
 class ProductImageUploadTests(CatalogTestCase):

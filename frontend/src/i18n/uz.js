@@ -102,7 +102,7 @@ export default {
   sale: {
     scanner: 'Skaner',
     search: 'Mahsulot qidirish...',
-    quick: 'Tez tugmalar',
+    quick: 'Shtrix-kodsiz mahsulotlar',
     cart: 'Savat',
     empty: "Savat bo'sh",
     empty_hint: 'Mahsulotni tanlang yoki shtrix-kodni skanerlang',

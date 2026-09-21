@@ -5,7 +5,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import F, OuterRef, QuerySet, Subquery, Sum
+from django.db.models import Count, F, OuterRef, QuerySet, Subquery, Sum
 from django.db.models.functions import Coalesce
 from django.http import Http404
 from django.utils import timezone
@@ -82,8 +82,15 @@ QUICK_WINDOW_DAYS = 90
 
 
 def quick_products(shop: Shop, limit: int = 15) -> list[Product]:
-    """Best sellers of the last 90 days for the quick-buttons panel (TZ v2 3.4),
-    padded alphabetically when the shop has fewer than ``limit`` sellers.
+    """Most-used barcode-less products of the last 90 days for the quick-buttons
+    panel on the sale screen (TZ v2 3.4), padded alphabetically when the shop
+    has fewer than ``limit`` of them.
+
+    Only products without a barcode qualify: the rest can be scanned, while
+    loose goods (bread, produce by the kilo) have to be found by hand, so
+    those are what deserves a permanent button. "Most used" is the number of
+    sales a product appeared in, not the summed quantity — that would compare
+    kilograms with pieces.
 
     The ranking is its own grouped query over recent sale lines. It used to be
     a correlated subquery evaluated for every product, which scanned all sale
@@ -97,16 +104,19 @@ def quick_products(shop: Shop, limit: int = 15) -> list[Product]:
     ranked_ids = [
         row["product_id"]
         for row in SaleItem.objects.filter(
-            sale__shop=shop, sale__status="completed", sale__sold_at__gte=since
+            sale__shop=shop,
+            sale__status="completed",
+            sale__sold_at__gte=since,
+            product__barcode__isnull=True,
         )
         .values("product_id")
-        .annotate(total=Sum("qty"))
-        .order_by("-total")[: limit * 3]
+        .annotate(uses=Count("sale_id", distinct=True))
+        .order_by("-uses", "product_id")[: limit * 3]
     ]
 
     def base() -> QuerySet[Product]:
         return with_price(
-            with_stock(Product.objects.filter(shop=shop, is_active=True))
+            with_stock(Product.objects.filter(shop=shop, is_active=True, barcode__isnull=True))
         ).select_related("category")
 
     by_id = {product.id: product for product in base().filter(id__in=ranked_ids)}

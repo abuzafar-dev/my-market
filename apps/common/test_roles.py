@@ -228,6 +228,8 @@ class HiddenCostDataTests(RoleFixtureMixin, TestCase):
     def test_markup_is_hidden_from_seller_in_lists_too(self):
         # The purchase list only holds low-stock products, so make this one low.
         Batch.objects.filter(pk=self.batch.pk).update(qty_remaining=Decimal("1"))
+        # The quick panel only lists barcode-less products.
+        Product.objects.filter(pk=self.product.pk).update(barcode=None)
         for url in ("/api/products/", "/api/products/?quick=true", "/api/purchase-list/"):
             with self.subTest(url):
                 body = self.client_for(self.seller).get(url).json()["data"]

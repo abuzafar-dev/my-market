@@ -92,12 +92,13 @@ class CatalogScaleTests(TestCase):
 
     def test_quick_products_rank_recent_sales_then_pad_alphabetically(self):
         a, b, c = self.make_products(3, prefix="P")
-        self.sell(b, "3")
-        self.sell(a, "1")
+        self.sell(b, "1")
+        self.sell(b, "1")
+        self.sell(a, "5")  # more quantity, but used in fewer sales
 
         names = [p.name for p in quick_products(self.shop, limit=3)]
 
-        self.assertEqual(names, ["P 001", "P 000", "P 002"])  # b (3), a (1), c padded in
+        self.assertEqual(names, ["P 001", "P 000", "P 002"])  # b (2 sales), a (1), c padded in
 
     def test_quick_products_ignore_old_sales_and_archived_products(self):
         a, b, c = self.make_products(3, prefix="P")
