@@ -33,6 +33,7 @@ class SaleViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = (
             Sale.objects.filter(shop=self.request.user.shop)
+            .select_related("customer", "sold_by")
             .prefetch_related("items__product")
             .order_by("-sold_at")
         )

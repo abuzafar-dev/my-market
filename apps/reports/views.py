@@ -1,10 +1,13 @@
 """Dashboard, statistics, and CSV export (TZ v2 8.2, 9.6)."""
 
+from datetime import date
 from io import BytesIO
 
 from django.http import HttpResponse
+from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.styles import Font
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -22,13 +25,25 @@ from .services import (
     previous_period_bounds,
     sales_series,
     sales_stats,
-    top_products,
+    sold_products,
     totals_between,
     unsold_products,
     write_off_total,
 )
 
 _VALID_PERIODS = {"day", "week", "month"}
+
+
+def _anchor(request) -> date | None:
+    """``?date=YYYY-MM-DD`` — any day inside the period to show (default:
+    today). A future date is pulled back to today by ``period_bounds``."""
+    raw = request.query_params.get("date")
+    if not raw:
+        return None
+    try:
+        return date.fromisoformat(raw)
+    except ValueError:
+        raise ValidationError({"date": "Sana YYYY-MM-DD ko'rinishida bo'lishi kerak."}) from None
 
 
 class DashboardView(APIView):
@@ -46,7 +61,11 @@ class DashboardView(APIView):
 
 
 class ReportsView(APIView):
-    """GET /api/reports/?period=day|week|month"""
+    """GET /api/reports/?period=day|week|month&date=YYYY-MM-DD
+
+    The day, week (Mon–Sun) or month that contains ``date`` (default: today),
+    cut off at today. ``today`` is sent back so the client never has to trust
+    the device's clock or time zone for "is this the current period"."""
 
     permission_classes = [IsAuthenticated, IsOwner]
 
@@ -55,29 +74,29 @@ class ReportsView(APIView):
         if period not in _VALID_PERIODS:
             period = "day"
         shop = request.user.shop
-        start, end = period_bounds(period)
-        prev_start, prev_end = previous_period_bounds(period)
+        start, end = period_bounds(period, _anchor(request))
+        prev_start, prev_end = previous_period_bounds(period, end)
         return Response(
             {
                 "period": period,
+                "today": timezone.localdate().isoformat(),
                 "range": {"start": start.isoformat(), "end": end.isoformat()},
                 # The same stretch of the previous period, for "+12%" arrows.
                 "previous": {
                     "range": {"start": prev_start.isoformat(), "end": prev_end.isoformat()},
                     **totals_between(shop, prev_start, prev_end),
                 },
-                "series": sales_series(shop, period),
-                "stats": sales_stats(shop, period),
-                "today_profit": sales_stats(shop, "day")["profit"],
-                "top_products": top_products(shop, period),
-                "debt": debt_summary(shop, period),
-                "write_offs_total": write_off_total(shop, period),
+                "series": sales_series(shop, start, end),
+                "stats": sales_stats(shop, start, end),
+                "products": sold_products(shop, start, end),
+                "debt": debt_summary(shop, start, end),
+                "write_offs_total": write_off_total(shop, start, end),
             }
         )
 
 
 class ReportsExportView(APIView):
-    """GET /api/reports/export/?period=day|week|month&file=xlsx|csv&lang=uz|ru
+    """GET /api/reports/export/?period=day|week|month&date=YYYY-MM-DD&file=xlsx|csv&lang=uz|ru
 
     The sales report for one period, as a file (not the JSON envelope, TZ v2
     9.6). xlsx -> a workbook (summary, per-day, every sale, per-product);
@@ -94,9 +113,10 @@ class ReportsExportView(APIView):
             period = "month"
         lang = "ru" if request.query_params.get("lang") == "ru" else "uz"
         shop = request.user.shop
+        start, end = period_bounds(period, _anchor(request))
         if request.query_params.get("file") == "xlsx":
-            return period_xlsx_response(shop, period, lang)
-        return period_csv_response(shop, period, lang)
+            return period_xlsx_response(shop, period, start, end, lang)
+        return period_csv_response(shop, start, end, lang)
 
 
 _XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

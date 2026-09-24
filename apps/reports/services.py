@@ -2,7 +2,7 @@
 
 from datetime import date, timedelta
 
-from django.db.models import Count, F, Q, QuerySet, Sum
+from django.db.models import Count, DecimalField, F, Q, QuerySet, Sum
 from django.db.models.functions import Coalesce, TruncDate, TruncHour
 from django.utils import timezone
 
@@ -13,30 +13,41 @@ from apps.sales.models import Sale, SaleItem
 from apps.shops.models import Shop
 
 
-def _period_range(period: str, today: date) -> tuple[date, date]:
+def _last_day_of_month(day: date) -> date:
+    next_month = day.replace(day=28) + timedelta(days=4)
+    return next_month - timedelta(days=next_month.day)
+
+
+def period_bounds(period: str, anchor: date | None = None) -> tuple[date, date]:
+    """First and last day (inclusive) of the day / week / month that contains
+    ``anchor`` (default: today), never past today.
+
+    ``anchor`` lets the owner look at any earlier day, week or month; a future
+    anchor is pulled back to today. "Today" is the shop's local date
+    (settings.TIME_ZONE), never the server clock's: the container runs in UTC,
+    and between 00:00 and 05:00 in Tashkent ``date.today()`` would still be
+    yesterday — while the ``sold_at__date`` lookups below already cut days in
+    local time."""
+    today = timezone.localdate()
+    anchor = min(anchor or today, today)
     if period == "week":
-        start = today - timedelta(days=today.weekday())
+        start = anchor - timedelta(days=anchor.weekday())
+        end = start + timedelta(days=6)
     elif period == "month":
-        start = today.replace(day=1)
+        start = anchor.replace(day=1)
+        end = _last_day_of_month(anchor)
     else:
-        start = today
-    return start, today
-
-
-def period_bounds(period: str) -> tuple[date, date]:
-    """First and last day (inclusive) a period covers, up to today.
-
-    "Today" is the shop's local date (settings.TIME_ZONE), never the server
-    clock's: the container runs in UTC, and between 00:00 and 05:00 in
-    Tashkent ``date.today()`` would still be yesterday — while the
-    ``sold_at__date`` lookups below already cut days in local time."""
-    return _period_range(period, timezone.localdate())
+        start = end = anchor
+    return start, min(end, today)
 
 
 def previous_period_bounds(period: str, today: date | None = None) -> tuple[date, date]:
-    """The same stretch of the previous period, for a fair comparison: today
-    vs yesterday, Monday..today vs last Monday..same weekday, 1st..today vs
-    last month's 1st..same day (clamped to that month's length)."""
+    """The same stretch of the previous period, for a fair comparison.
+
+    ``today`` is the last day of the range being compared (default: today):
+    a day vs the day before, Monday..that day vs last Monday..same weekday,
+    1st..that day vs last month's 1st..same day (clamped to that month's
+    length). For a finished past week or month that is the whole previous one."""
     today = today or timezone.localdate()
     if period == "week":
         start = today - timedelta(days=today.weekday() + 7)
@@ -81,16 +92,15 @@ def _money_aggregates() -> dict:
 _ZERO_ROW = {"count": 0, "revenue": 0, "cash": 0, "card": 0, "debt": 0, "profit": 0}
 
 
-def sales_series(shop: Shop, period: str) -> dict:
-    """How much was sold in each slice of the period.
+def sales_series(shop: Shop, start: date, end: date) -> dict:
+    """How much was sold in each slice of the range.
 
-    week / month -> one row per calendar day from the start of the period up to
-    today (days with no sales are included as zeros, so the list is complete).
-    day          -> one row per hour that had sales."""
-    start, end = period_bounds(period)
+    several days -> one row per calendar day (days with no sales are included
+    as zeros, so the list is complete).
+    a single day -> one row per hour that had sales."""
     sales = completed_sales(shop, start, end)
 
-    if period == "day":
+    if start == end:
         rows = (
             sales.annotate(slot=TruncHour("sold_at"))
             .values("slot")
@@ -121,21 +131,40 @@ def sales_series(shop: Shop, period: str) -> dict:
     return {"kind": "day", "rows": rows}
 
 
-def sales_stats(shop: Shop, period: str = "day") -> dict:
-    start, end = period_bounds(period)
+def sales_stats(shop: Shop, start: date, end: date) -> dict:
     stats = completed_sales(shop, start, end).aggregate(**_money_aggregates())
     stats["cash_in_register"] = stats["cash"] + stats["card"]
     return stats
 
 
-def top_products(shop: Shop, period: str, limit: int = 5) -> list[dict]:
-    start, end = period_bounds(period)
-    return list(
+def sold_products(shop: Shop, start: date, end: date) -> list[dict]:
+    """Everything sold in the range, one row per product, best-earning first:
+    how much went out, what it brought in, the profit on it and in how many
+    receipts it appeared. Profit uses each line's own cost snapshot, so a
+    product bought at different prices over the period is still exact."""
+    rows = (
         SaleItem.objects.filter(sale__in=completed_sales(shop, start, end))
         .values("product_id", "product__name", "product__unit")
-        .annotate(qty_sold=Sum("qty"), revenue=Sum("line_total"))
-        .order_by("-qty_sold")[:limit]
+        .annotate(
+            qty_sold=Sum("qty"),
+            revenue=Sum("line_total"),
+            cost=Sum(F("unit_cost") * F("qty"), output_field=DecimalField()),
+            receipts=Count("sale_id", distinct=True),
+        )
+        .order_by("-revenue", "product__name")
     )
+    return [
+        {
+            "product_id": row["product_id"],
+            "name": row["product__name"],
+            "unit": row["product__unit"],
+            "qty": row["qty_sold"],
+            "revenue": row["revenue"],
+            "profit": row["revenue"] - round(row["cost"]),
+            "receipts": row["receipts"],
+        }
+        for row in rows
+    ]
 
 
 def unsold_products(shop: Shop) -> QuerySet[Product]:
@@ -150,20 +179,18 @@ def unsold_products(shop: Shop) -> QuerySet[Product]:
     )
 
 
-def write_off_total(shop: Shop, period: str) -> int:
-    start, end = period_bounds(period)
+def write_off_total(shop: Shop, start: date, end: date) -> int:
     return WriteOff.objects.filter(
         shop=shop, created_at__date__gte=start, created_at__date__lte=end
     ).aggregate(total=Coalesce(Sum("cost_total"), 0))["total"]
 
 
-def debt_summary(shop: Shop, period: str) -> dict:
+def debt_summary(shop: Shop, start: date, end: date) -> dict:
     """Credit ("nasiya") picture for a period: how much was sold on credit, how
     much of the debt was paid back meanwhile, what customers owe right now, and
     how many customers owe. ``outstanding`` / ``debtors`` are "as of today" — a
     debt does not disappear when the period ends. (Who owes how much lives on
     the Qarz screen, not in the report.)"""
-    start, end = period_bounds(period)
 
     sold = (
         completed_sales(shop, start, end)
@@ -201,7 +228,7 @@ def debt_summary(shop: Shop, period: str) -> dict:
 def dashboard(shop: Shop) -> dict:
     warn_days = shop.get_settings().expiry_warn_days
     return {
-        "today": sales_stats(shop, "day"),
+        "today": sales_stats(shop, *period_bounds("day")),
         # Same rule as the debt page and the report: only what customers owe.
         # A customer who overpaid (negative balance) must not shrink the total.
         "total_debt": Customer.objects.filter(

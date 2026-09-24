@@ -97,23 +97,50 @@ class ReportExportTests(TestCase):
         for url in ("/api/reports/low-stock/export/", "/api/reports/unsold/export/"):
             self.assertEqual(self.client.get(url).status_code, 403)
 
-    def test_reports_includes_today_profit_regardless_of_period(self):
-        product = self.make_product("Un", "50")
-        self.sell(product, "2")  # 2 * (1200 - 1000)
-
-        response = self.client.get("/api/reports/", {"period": "month"})
-
-        self.assertEqual(response.json()["data"]["today_profit"], 400)
-
-    def test_top_products_carry_their_unit(self):
-        self.sell(self.make_product("Un", "50"), "2.5")
+    def test_sold_products_list_everything_with_qty_profit_and_receipts(self):
+        flour, bread = self.make_product("Un", "50"), self.make_product("Non", "50")
+        self.sell(flour, "2.5")  # 3000, profit 500
+        self.sell(flour, "1")  # 1200, profit 200
+        self.sell(bread, "1")  # 1200, profit 200
 
         response = self.client.get("/api/reports/", {"period": "day"})
 
-        top = response.json()["data"]["top_products"]
-        self.assertEqual(top[0]["product__name"], "Un")
-        self.assertEqual(top[0]["product__unit"], "kg")
-        self.assertEqual(Decimal(top[0]["qty_sold"]), Decimal("2.5"))
+        rows = response.json()["data"]["products"]
+        self.assertEqual([row["name"] for row in rows], ["Un", "Non"])
+        self.assertEqual(rows[0]["unit"], "kg")
+        self.assertEqual(Decimal(rows[0]["qty"]), Decimal("3.5"))
+        self.assertEqual((rows[0]["revenue"], rows[0]["profit"]), (4200, 700))
+        self.assertEqual(rows[0]["receipts"], 2)
+
+    def test_any_past_day_can_be_opened(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        product = self.make_product("Un", "50")
+        sale = self.sell(product, "2")
+        three_days_ago = timezone.now() - timedelta(days=3)
+        Sale.objects.filter(pk=sale.pk).update(sold_at=three_days_ago)
+        day = timezone.localdate(three_days_ago).isoformat()
+
+        data = self.client.get("/api/reports/", {"period": "day", "date": day}).json()["data"]
+
+        self.assertEqual(data["range"], {"start": day, "end": day})
+        self.assertEqual(data["stats"]["revenue"], 2400)
+        self.assertEqual(data["products"][0]["name"], "Un")
+        today = self.client.get("/api/reports/", {"period": "day"}).json()["data"]
+        self.assertEqual(today["stats"]["revenue"], 0)
+
+    def test_a_bad_date_is_a_validation_error_and_a_future_one_means_today(self):
+        from django.utils import timezone
+
+        bad = self.client.get("/api/reports/", {"date": "24.09.2026"})
+        self.assertEqual(bad.status_code, 400)
+
+        future = self.client.get("/api/reports/", {"date": "2999-01-01"}).json()["data"]
+        today = timezone.localdate().isoformat()
+        self.assertEqual(future["range"], {"start": today, "end": today})
+        self.assertEqual(future["today"], today)
 
 
 class PeriodReportTests(ReportExportTests):
@@ -350,3 +377,30 @@ class LocalDateTests(ReportExportTests):
         moment = datetime(2030, 1, 1, 2, 0, tzinfo=ZoneInfo("Asia/Tashkent"))
         with mock.patch("django.utils.timezone.now", return_value=moment):
             self.assertEqual(period_bounds("day"), (date(2030, 1, 1),) * 2)
+
+
+class PeriodBoundsTests(TestCase):
+    """The day / week / month around any date, never past today."""
+
+    def bounds(self, period, anchor, today):
+        from unittest import mock
+
+        from apps.reports.services import period_bounds
+
+        with mock.patch("django.utils.timezone.localdate", return_value=today):
+            return period_bounds(period, anchor)
+
+    def test_a_past_week_and_month_are_whole(self):
+        today = date(2026, 9, 24)
+        # 2026-08-12 is a Wednesday.
+        self.assertEqual(
+            self.bounds("week", date(2026, 8, 12), today), (date(2026, 8, 10), date(2026, 8, 16))
+        )
+        self.assertEqual(
+            self.bounds("month", date(2026, 2, 10), today), (date(2026, 2, 1), date(2026, 2, 28))
+        )
+
+    def test_the_current_period_stops_at_today(self):
+        today = date(2026, 9, 24)
+        self.assertEqual(self.bounds("month", today, today), (date(2026, 9, 1), today))
+        self.assertEqual(self.bounds("week", today, today), (date(2026, 9, 21), today))

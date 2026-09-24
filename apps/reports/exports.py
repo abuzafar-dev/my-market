@@ -24,7 +24,7 @@ from openpyxl.utils import get_column_letter
 from apps.sales.models import SaleItem
 from apps.shops.models import Shop
 
-from .services import completed_sales, debt_summary, period_bounds, sales_series
+from .services import completed_sales, debt_summary, sales_series
 
 _XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
@@ -34,7 +34,7 @@ TEXT = {
         "shop": "Do'kon",
         "period": "Davr",
         "from_to": "Sanalar",
-        "periods": {"day": "Bugun", "week": "Shu hafta", "month": "Shu oy"},
+        "periods": {"day": "Kun", "week": "Hafta", "month": "Oy"},
         "summary": "Xulosa",
         "days": "Kunlar bo'yicha",
         "hours": "Soatlar bo'yicha",
@@ -81,7 +81,7 @@ TEXT = {
         "shop": "Магазин",
         "period": "Период",
         "from_to": "Даты",
-        "periods": {"day": "Сегодня", "week": "Эта неделя", "month": "Этот месяц"},
+        "periods": {"day": "День", "week": "Неделя", "month": "Месяц"},
         "summary": "Итоги",
         "days": "По дням",
         "hours": "По часам",
@@ -153,10 +153,10 @@ def _filename(lang: str, start: date, end: date, ext: str) -> str:
     return f"{TEXT[lang]['file']}_{span}.{ext}"
 
 
-def _day_table(shop: Shop, period: str, lang: str) -> tuple[list[str], list[list], list]:
+def _day_table(shop: Shop, start: date, end: date, lang: str) -> tuple[list[str], list[list], list]:
     """Header, body rows and the totals row of the per-day (per-hour) table."""
     text = TEXT[lang]
-    series = sales_series(shop, period)
+    series = sales_series(shop, start, end)
     is_hourly = series["kind"] == "hour"
 
     header = [text["hour"] if is_hourly else text["date"]]
@@ -185,9 +185,8 @@ def _day_table(shop: Shop, period: str, lang: str) -> tuple[list[str], list[list
     return header, body, total_row
 
 
-def period_csv_response(shop: Shop, period: str, lang: str) -> HttpResponse:
-    start, end = period_bounds(period)
-    header, body, total_row = _day_table(shop, period, lang)
+def period_csv_response(shop: Shop, start: date, end: date, lang: str) -> HttpResponse:
+    header, body, total_row = _day_table(shop, start, end, lang)
 
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="{_filename(lang, start, end, "csv")}"'
@@ -223,10 +222,11 @@ def _autosize(sheet) -> None:
         sheet.column_dimensions[column[0].column_letter].width = min(max(width + 3, 12), 48)
 
 
-def period_xlsx_response(shop: Shop, period: str, lang: str) -> HttpResponse:
+def period_xlsx_response(
+    shop: Shop, period: str, start: date, end: date, lang: str
+) -> HttpResponse:
     text = TEXT[lang]
-    start, end = period_bounds(period)
-    header, body, total_row = _day_table(shop, period, lang)
+    header, body, total_row = _day_table(shop, start, end, lang)
     money_headers = {text[f] for f in (*_MONEY_FIELDS, "debt_paid", "debt_outstanding")}
 
     workbook = Workbook()
@@ -248,7 +248,7 @@ def period_xlsx_response(shop: Shop, period: str, lang: str) -> HttpResponse:
     total_by_label = dict(zip(header[-6:], total_row[-6:], strict=True))
     for label in labels:
         summary.append([label, total_by_label[label]])
-    debt = debt_summary(shop, period)
+    debt = debt_summary(shop, start, end)
     summary.append([])
     summary.append([text["debt_paid"], debt["paid"]])
     summary.append([text["debt_outstanding"], debt["outstanding"]])
@@ -261,7 +261,7 @@ def period_xlsx_response(shop: Shop, period: str, lang: str) -> HttpResponse:
     summary.column_dimensions["B"].width = 30
 
     # 2) Per day / per hour
-    kind_sheet = workbook.create_sheet(text["hours"] if period == "day" else text["days"])
+    kind_sheet = workbook.create_sheet(text["hours"] if start == end else text["days"])
     kind_sheet.append(header)
     for row in body:
         kind_sheet.append(row)

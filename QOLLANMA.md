@@ -616,23 +616,36 @@ hisoblanadi; (c) klaviatura tili **Lotin (EN)** bo'lsin.
 
 ### Hisobot (egasi)
 
-**Kunlik / Haftalik / Oylik** — savdo, kassadagi pul (naqd + karta), foyda,
-cheklar soni va o'rtacha chek. Har ko'rsatkich yonida **oldingi davrning
-xuddi shu bo'lagi** bilan farq (▲/▼ %): bugun — kecha bilan, hafta —
-o'tgan haftaning dushanbadan shu kungacha bo'lagi bilan, oy — o'tgan oyning
-1-sanadan shu kungacha bo'lagi bilan.
+**Kun / Hafta / Oy** ni tanlang, yonidagi **‹ ›** bilan oldingi yoki keyingi
+kun (hafta, oy)ga o'ting yoki sanani bosib **istalgan kunni** kalendardan
+tanlang. **Bugunga** — joriy davrga qaytish. Tanlangan davr manzil satrida
+saqlanadi: sahifani yangilasangiz yoki havolani yuborsangiz, o'sha hisobot ochiladi.
 
-Yana: kunlar (yoki soatlar) bo'yicha savdo, to'lov turlari ulushi, **nasiya**
-(davrda qarzga sotilgani, qaytarilgan to'lovlar, hozirgi jami qarz), eng ko'p
-sotilgan 5 mahsulot va yo'qotishlar (hisobdan chiqarilgan tovar tannarxi).
+Tepada: savdo, foyda, cheklar soni, o'rtacha chek — har birining yonida
+**oldingi kun / hafta / oy** bilan farq (▲/▼ %). Joriy hafta yoki oy
+o'tganining xuddi shu kunlari bilan solishtiriladi.
+
+Pastdagi yorliqlar:
+
+- **Mahsulotlar** — shu davrda **nima, qancha sotilgani**: har mahsulotning
+  miqdori (dona/kg/litr), tushumi, foydasi va nechta chekda bo'lgani. Qidirish
+  va tushum / miqdor / foyda bo'yicha saralash mumkin.
+- **Kunlar** (hafta, oy) yoki **Soatlar** (kun) — har kun/soat savdosi. Kunni
+  bossangiz, o'sha kuni nima sotilgani ochiladi.
+- **Cheklar** (kun) — o'sha kunning har bir cheki: vaqti, mahsulotlari, to'lov
+  turi, sotuvchi. Chekni bosib to'liq ochasiz.
+
+Yon tomonda: to'lov turlari ulushi, **nasiya** (qarzga sotilgani, qaytarilgan
+to'lovlar, hozirgi jami qarz) va yo'qotishlar (hisobdan chiqarilgan tovar
+tannarxi).
 
 "Bugun" — **Toshkent vaqti** bo'yicha: server boshqa vaqt mintaqasida
 bo'lsa ham, kun yarim tunda almashadi.
 
 ### Hisobotdan fayl olish
 
-**Hisobot** → yuqorida **Kunlik / Haftalik / Oylik** ni tanlang → pastdagi
-**Faylga yuklab olish**da **Excel** yoki **CSV** ni bosing. Fayl telefon
+**Hisobot** → davr va sanani tanlang → **Fayllar**da **Excel** yoki **CSV**
+ni bosing — fayl aynan tanlangan kun/hafta/oy uchun bo'ladi. Fayl telefon
 yoki kompyuterning **Yuklamalar (Downloads)** papkasiga tushadi.
 
 - **Excel** — 4 varaq: xulosa, kunlar bo'yicha, har bir chek, mahsulotlar bo'yicha.

@@ -180,7 +180,7 @@ class TenantIsolationTests(TwoShopsTestCase):
             self.assertEqual(len(body["results"]), 0, path)
         report = self.client.get("/api/reports/", {"period": "month"}).json()["data"]
         self.assertEqual(report["stats"]["revenue"], 0)
-        self.assertEqual(report["top_products"], [])
+        self.assertEqual(report["products"], [])
         self.assertEqual(self.client.get("/api/dashboard/").json()["data"]["total_debt"], 0)
 
 

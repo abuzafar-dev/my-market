@@ -22,9 +22,10 @@ common issues) see [QOLLANMA.md](QOLLANMA.md).
   - `apps/debt` — customers and their debt ledger (debt/payment
     entries), a debtors-only filter, search by name or phone, and a
     shop-wide "who owes what" summary.
-  - `apps/reports` — sales stats, per-day / per-hour breakdown, a
-    comparison with the same stretch of the previous period, the credit
-    (nasiya) picture, and period reports as Excel (4 sheets) or CSV.
+  - `apps/reports` — for any day, week or month (`?period=&date=`): sales
+    stats, per-day / per-hour breakdown, every product sold (qty, revenue,
+    profit, receipts), a comparison with the previous period, the credit
+    (nasiya) picture, and the same period as Excel (4 sheets) or CSV.
   - `apps/common` — shared response envelope, exception handling, the
     `IsOwner` permission class.
 - **Frontend** — Vue 3 + Pinia + Vite + Tailwind 4 (`frontend/`), a PWA

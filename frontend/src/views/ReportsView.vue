@@ -5,44 +5,74 @@ import { useRoute, useRouter } from 'vue-router'
 import api from '@/api/client'
 import Icon from '@/components/Icon.vue'
 import InfoHint from '@/components/InfoHint.vue'
+import LoadMore from '@/components/LoadMore.vue'
 import PageTitle from '@/components/PageTitle.vue'
 import SectionCard from '@/components/SectionCard.vue'
 import StatTile from '@/components/StatTile.vue'
 import UnitBadge from '@/components/UnitBadge.vue'
-import { locale, t } from '@/i18n'
+import { intlLocale, locale, t } from '@/i18n'
 import { useToastStore } from '@/stores/toast'
 import { apiError } from '@/utils/errors'
 import { formatMoney } from '@/utils/format'
+import { usePagedList } from '@/utils/paged'
 
 const toast = useToastStore()
 const route = useRoute()
 const router = useRouter()
 
-const periods = [
-  ['day', 'reports.day', 'clock'],
-  ['week', 'reports.week', 'calendar'],
-  ['month', 'reports.month', 'calendar'],
+const PERIODS = [
+  ['day', 'reports.day'],
+  ['week', 'reports.week'],
+  ['month', 'reports.month'],
 ]
 
-// The period lives in the URL, so a reload (or a bookmark) keeps the tab.
-const period = computed({
-  get: () => (['day', 'week', 'month'].includes(route.query.period) ? route.query.period : 'day'),
-  set: (value) => {
-    router.replace({ query: { ...route.query, period: value === 'day' ? undefined : value } })
-  },
-})
+// --- Dates: plain "YYYY-MM-DD" strings, built from local parts, so the
+// device's time zone can never shift a day. "Today" comes from the server. ---
+const pad = (n) => String(n).padStart(2, '0')
+const parseDay = (iso) => {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+const toIso = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+const dayMonth = (iso) => {
+  const date = parseDay(iso)
+  return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}`
+}
+const weekday = (iso) => t(`reports.wd.${(parseDay(iso).getDay() + 6) % 7}`)
+
+// Period and date live in the URL: a reload, the back button or a shared
+// link reopens exactly the same report. No `date` means "today".
+const period = computed(() =>
+  ['day', 'week', 'month'].includes(route.query.period) ? route.query.period : 'day',
+)
+const dateParam = computed(() =>
+  /^\d{4}-\d{2}-\d{2}$/.test(route.query.date ?? '') ? route.query.date : null,
+)
+
+function go({ period: nextPeriod = period.value, date = dateParam.value } = {}) {
+  const isToday = !date || (report.value && date >= report.value.today)
+  router.replace({
+    query: {
+      ...route.query,
+      period: nextPeriod === 'day' ? undefined : nextPeriod,
+      date: isToday ? undefined : date,
+    },
+  })
+}
+
 const report = ref(null)
 const refreshing = ref(false)
 
-// A period switch shows the skeleton; a refresh keeps the figures on screen
-// and only spins the button.
 async function load({ soft = false } = {}) {
   if (soft) refreshing.value = true
   else report.value = null
+  const params = { period: period.value, date: dateParam.value ?? undefined }
   try {
-    const requested = period.value
-    const response = await api.get('/reports/', { params: { period: requested } })
-    if (requested === period.value) report.value = response.data.data
+    const response = await api.get('/reports/', { params })
+    // A newer choice made while this one was loading wins.
+    if (params.period === period.value && (params.date ?? null) === dateParam.value) {
+      report.value = response.data.data
+    }
   } catch (err) {
     toast.error(apiError(err))
   } finally {
@@ -50,61 +80,83 @@ async function load({ soft = false } = {}) {
   }
 }
 onMounted(load)
-watch(period, () => load())
+watch([period, dateParam], () => load())
 
-// "+12%" against the same stretch of the previous period; nothing to compare
-// with when that period had no sales.
+const range = computed(() => report.value?.range)
+const isCurrent = computed(() => report.value && range.value.end === report.value.today)
+
+// Step one day / week / month back or forward from the period shown.
+function shift(direction) {
+  if (!report.value) return
+  const start = parseDay(range.value.start)
+  if (period.value === 'month') {
+    start.setMonth(start.getMonth() + direction, 1)
+  } else {
+    start.setDate(start.getDate() + direction * (period.value === 'week' ? 7 : 1))
+  }
+  go({ date: toIso(start) })
+}
+
+function pickDate(event) {
+  if (event.target.value) go({ date: event.target.value })
+}
+// Desktop browsers only open the calendar from the tiny icon; open it from
+// anywhere on the button. Phones open it on tap anyway.
+function openPicker(event) {
+  try {
+    event.target.showPicker?.()
+  } catch {
+    // Not allowed here (old browser / iframe) — the native tap still works.
+  }
+}
+
+const periodLabel = computed(() => {
+  if (!report.value) return ''
+  const { start, end } = range.value
+  if (period.value === 'month') {
+    // Our own month names: browsers ship no Uzbek ones ("2026 M09").
+    const date = parseDay(start)
+    return `${t(`reports.months.${date.getMonth()}`)} ${date.getFullYear()}`
+  }
+  if (period.value === 'week') return `${dayMonth(start)} – ${dayMonth(end)}`
+  if (end === report.value.today) return `${t('reports.today')}, ${dayMonth(end)}`
+  const yesterday = parseDay(report.value.today)
+  yesterday.setDate(yesterday.getDate() - 1)
+  if (end === toIso(yesterday)) return `${t('reports.yesterday')}, ${dayMonth(end)}`
+  // The year only when it isn't this year's — keeps the label short on phones.
+  const year = end.slice(0, 4) === report.value.today.slice(0, 4) ? '' : `.${end.slice(0, 4)}`
+  return `${dayMonth(end)}${year}, ${weekday(end)}`
+})
+
+// --- Headline figures, each with its change vs the previous period ---
 function change(current, previous) {
   if (!previous) return null
   return Math.round(((current - previous) / Math.abs(previous)) * 100)
 }
 const compareHint = computed(() => t(`reports.vs.${period.value}`))
 
-const dayMonth = (date) =>
-  `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}`
-const parseDay = (iso) => new Date(`${iso}T00:00:00`)
-
-// The dates the server actually used for this period (Monday..today, 1st..today).
-const rangeLabel = computed(() => {
-  if (!report.value) return ''
-  const { start, end } = report.value.range
-  return start === end
-    ? dayMonth(parseDay(end))
-    : `${dayMonth(parseDay(start))} – ${dayMonth(parseDay(end))}`
-})
-
-// "Bugun foyda" only adds something when the period is longer than a day.
-const statTiles = computed(() => {
+const tiles = computed(() => {
   const data = report.value
   if (!data) return []
-  const prev = data.previous
-  const count = data.stats.count ?? 0
-  const tiles = [
+  const { stats, previous: prev } = data
+  const count = stats.count ?? 0
+  return [
     {
       icon: 'cart',
       label: t('reports.revenue'),
-      hint: t('reports.revenue_hint'),
-      value: data.stats.revenue,
-      delta: change(data.stats.revenue, prev?.revenue),
-    },
-    {
-      icon: 'cash',
-      label: t('reports.cash'),
-      hint: t('reports.cash_hint'),
-      value: data.stats.cash_in_register,
+      value: stats.revenue,
+      delta: change(stats.revenue, prev?.revenue),
     },
     {
       icon: 'trend',
       label: t('reports.profit'),
-      hint: t('reports.profit_hint'),
-      value: data.stats.profit,
+      value: stats.profit,
       tone: 'accent',
-      delta: change(data.stats.profit, prev?.profit),
+      delta: change(stats.profit, prev?.profit),
     },
     {
       icon: 'receipt',
       label: t('reports.sales_n'),
-      hint: t('reports.sales_n_hint'),
       value: count,
       unit: t('reports.pcs'),
       delta: change(count, prev?.count),
@@ -112,73 +164,123 @@ const statTiles = computed(() => {
     {
       icon: 'tag',
       label: t('reports.avg_check'),
-      hint: t('reports.avg_check_hint'),
-      value: count ? Math.round(data.stats.revenue / count) : 0,
+      value: count ? Math.round(stats.revenue / count) : 0,
     },
   ]
-  if (period.value !== 'day') {
-    tiles.push({
-      icon: 'clock',
-      label: t('reports.today_profit'),
-      hint: t('reports.today_profit_hint'),
-      value: data.today_profit,
-      tone: 'accent',
-    })
-  }
-  return tiles
 })
 
-// --- Credit ("nasiya"): payment split + sold on credit / paid back / owed ---
+// --- Detail tabs: what was sold / day-by-day (or hour-by-hour) / receipts ---
+const tab = ref('products')
+const tabs = computed(() => [
+  ['products', 'reports.tab_products', 'box', report.value?.products.length],
+  ['series', period.value === 'day' ? 'reports.tab_hours' : 'reports.tab_days', 'calendar'],
+  ...(period.value === 'day' ? [['receipts', 'reports.tab_receipts', 'receipt']] : []),
+])
+watch(period, () => {
+  if (tab.value === 'receipts' && period.value !== 'day') tab.value = 'products'
+})
+
+// What was sold: every product of the period, searchable and sortable.
+const productQuery = ref('')
+const productSort = ref('revenue')
+const showAllProducts = ref(false)
+const SORTS = [
+  ['revenue', 'reports.sort_revenue'],
+  ['qty', 'reports.sort_qty'],
+  ['profit', 'reports.sort_profit'],
+]
+const PRODUCT_PREVIEW = 12
+
+const productRows = computed(() => {
+  const query = productQuery.value.trim().toLowerCase()
+  const rows = (report.value?.products ?? []).filter(
+    (row) => !query || row.name.toLowerCase().includes(query),
+  )
+  const key = productSort.value
+  return [...rows].sort((a, b) => Number(b[key]) - Number(a[key]))
+})
+const visibleProducts = computed(() =>
+  showAllProducts.value || productQuery.value
+    ? productRows.value
+    : productRows.value.slice(0, PRODUCT_PREVIEW),
+)
+const productMax = computed(() =>
+  Math.max(...productRows.value.map((row) => Number(row[productSort.value])), 1),
+)
+const productTotals = computed(() =>
+  (report.value?.products ?? []).reduce(
+    (sum, row) => ({ revenue: sum.revenue + row.revenue, profit: sum.profit + row.profit }),
+    { revenue: 0, profit: 0 },
+  ),
+)
+watch(report, () => {
+  showAllProducts.value = false
+})
+
+const formatQty = (qty) =>
+  Number(qty).toLocaleString(intlLocale.value, { maximumFractionDigits: 3 })
+
+// Day by day (week / month) or hour by hour (one day). A day row opens that
+// day, so "what did we sell on the 12th?" is one tap from the month view.
+const isHourly = computed(() => report.value?.series.kind === 'hour')
+const seriesRows = computed(() => {
+  if (!report.value) return []
+  const rows = report.value.series.rows.map((row) =>
+    isHourly.value
+      ? { ...row, title: row.key, sub: '' }
+      : {
+          ...row,
+          title: dayMonth(row.key),
+          sub: row.key === report.value.today ? t('reports.today') : weekday(row.key),
+        },
+  )
+  return isHourly.value ? rows : rows.reverse() // newest day first
+})
+const seriesMax = computed(() => Math.max(...seriesRows.value.map((row) => row.revenue), 1))
+const bestKey = computed(() => {
+  const best = [...seriesRows.value].sort((a, b) => b.revenue - a.revenue)[0]
+  return best?.revenue > 0 ? best.key : null
+})
+const seriesEmpty = computed(() => seriesRows.value.every((row) => !row.revenue))
+
+function openDay(key) {
+  if (isHourly.value) return
+  tab.value = 'products'
+  go({ period: 'day', date: key })
+}
+
+// Receipts of the chosen day, loaded only when that tab is opened.
+const receipts = usePagedList('/sales/', () => ({ date: range.value?.start }), 30)
+const receiptsFor = ref(null)
+watch([tab, range], () => {
+  if (tab.value !== 'receipts' || !range.value || receiptsFor.value === range.value.start) return
+  receiptsFor.value = range.value.start
+  receipts.load().catch((err) => toast.error(apiError(err)))
+})
+const timeOf = (iso) =>
+  new Date(iso).toLocaleTimeString(intlLocale.value, { hour: '2-digit', minute: '2-digit' })
+const PAY_TONE = {
+  cash: 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]',
+  card: 'bg-sky-50 text-sky-700',
+  debt: 'bg-[var(--color-warn-soft)] text-[var(--color-warn)]',
+}
+
+// --- Payments and credit ---
 const split = computed(() => {
   const stats = report.value?.stats
   if (!stats) return []
   const parts = [
-    {
-      key: 'cash',
-      label: t('reports.pay_cash'),
-      value: Number(stats.cash),
-      color: 'bg-[var(--color-accent)]',
-    },
-    { key: 'card', label: t('reports.pay_card'), value: Number(stats.card), color: 'bg-sky-500' },
-    { key: 'debt', label: t('reports.pay_debt'), value: Number(stats.debt), color: 'bg-amber-500' },
-  ]
+    ['cash', 'reports.pay_cash', stats.cash, 'bg-[var(--color-accent)]'],
+    ['card', 'reports.pay_card', stats.card, 'bg-sky-500'],
+    ['debt', 'reports.pay_debt', stats.debt, 'bg-amber-500'],
+  ].map(([key, label, value, color]) => ({ key, label: t(label), value: Number(value), color }))
   const sum = parts.reduce((total, part) => total + part.value, 0)
   return parts.map((part) => ({ ...part, pct: sum ? Math.round((part.value / sum) * 100) : 0 }))
 })
-const splitHasData = computed(() => split.value.some((part) => part.value > 0))
 const debt = computed(() => report.value?.debt)
 
-// --- Sales per day (week / month) or per hour (today) ---
-const isHourly = computed(() => report.value?.series.kind === 'hour')
-
-const seriesRows = computed(() => {
-  if (!report.value) return []
-  const rows = report.value.series.rows.map((row) => {
-    if (isHourly.value) return { ...row, title: row.key, sub: '' }
-    const date = parseDay(row.key)
-    return {
-      ...row,
-      title: dayMonth(date),
-      sub: t(`reports.wd.${(date.getDay() + 6) % 7}`),
-      isToday: row.key === report.value.range.end,
-    }
-  })
-  // Newest day first: what happened today is what the owner wants to see.
-  return isHourly.value ? rows : rows.reverse()
-})
-
-const seriesMax = computed(() => Math.max(...seriesRows.value.map((row) => row.revenue), 1))
-const bestKey = computed(() => {
-  const best = [...seriesRows.value].sort((a, b) => b.revenue - a.revenue)[0]
-  return best && best.revenue > 0 ? best.key : null
-})
-const seriesEmpty = computed(() => seriesRows.value.every((row) => row.revenue === 0))
-
-const topProducts = computed(() => report.value?.top_products ?? [])
-const topMax = computed(() => Math.max(...topProducts.value.map((p) => Number(p.qty_sold)), 1))
-
-// --- Downloads ---
-const busy = ref(null) // which download is being prepared
+// --- Files ---
+const busy = ref(null)
 
 async function download(id, path, params, filename) {
   busy.value = id
@@ -202,51 +304,47 @@ async function download(id, path, params, filename) {
   }
 }
 
-// e.g. hisobot_2026-09-14_2026-09-19.xlsx — same name the server suggests.
-function reportFilename(ext) {
-  const { start, end } = report.value.range
+// e.g. hisobot_2026-09-14_2026-09-20.xlsx — same name the server suggests.
+function reportFile(ext) {
+  const { start, end } = range.value
   const span = start === end ? start : `${start}_${end}`
-  return `${locale.value === 'ru' ? 'otchet' : 'hisobot'}_${span}.${ext}`
+  const name = `${locale.value === 'ru' ? 'otchet' : 'hisobot'}_${span}.${ext}`
+  const params = { period: period.value, date: start, file: ext, lang: locale.value }
+  return download(ext, '/reports/export/', params, name)
 }
 
-function downloadReport(ext) {
-  if (!report.value) return
-  return download(
-    ext,
-    '/reports/export/',
-    { period: period.value, file: ext, lang: locale.value },
-    reportFilename(ext),
-  )
-}
-
-const fileButtons = computed(() => [
+const files = computed(() => [
   {
-    ext: 'xlsx',
+    id: 'xlsx',
     icon: 'sheet',
     title: t('reports.dl_excel'),
     sub: t('reports.dl_excel_sub'),
-    primary: true,
+    tone: 'bg-[var(--color-accent)] text-white',
+    iconTone: 'bg-white/20',
+    subTone: 'text-white/80',
+    run: () => reportFile('xlsx'),
   },
-  { ext: 'csv', icon: 'file', title: t('reports.dl_csv'), sub: t('reports.dl_csv_sub') },
-])
-
-// Stock lists are not tied to the period — they are "as of now".
-const stockLists = computed(() => [
   {
+    id: 'csv',
+    icon: 'file',
+    title: t('reports.dl_csv'),
+    sub: t('reports.dl_csv_sub'),
+    run: () => reportFile('csv'),
+  },
+  {
+    // Stock lists are "as of now", not tied to the period.
     id: 'low',
     icon: 'warning',
-    tone: 'bg-[var(--color-warn-soft)] text-[var(--color-warn)]',
     title: t('reports.low_title'),
-    hint: t('reports.low_hint'),
+    sub: t('reports.low_hint'),
+    iconTone: 'bg-[var(--color-warn-soft)] text-[var(--color-warn)]',
     run: () => download('low', '/reports/low-stock/export/', {}, 'kam_qolgan_tovarlar.xlsx'),
-    view: { name: 'products', query: { filter: 'low' } },
   },
   {
     id: 'unsold',
     icon: 'box',
-    tone: 'bg-[var(--color-paper)] text-[var(--color-ink-soft)]',
     title: t('reports.unsold_title'),
-    hint: t('reports.unsold_hint'),
+    sub: t('reports.unsold_hint'),
     run: () => download('unsold', '/reports/unsold/export/', {}, 'sotilmagan_tovarlar.xlsx'),
   },
 ])
@@ -255,76 +353,118 @@ const stockLists = computed(() => [
 <template>
   <div class="mx-auto w-full max-w-7xl px-4 py-5 md:px-8 md:py-8">
     <PageTitle icon="chart" :title="t('reports.title')" :subtitle="t('reports.subtitle')">
-      <span
-        v-if="report"
-        class="inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--color-paper)] px-2 py-1 font-mono text-[11px] text-[var(--color-ink-soft)] ring-1 ring-inset ring-[var(--color-line)]"
-      >
-        <Icon name="calendar" :size="12" />
-        {{ rangeLabel }}
-      </span>
       <button
         type="button"
         :disabled="!report || refreshing"
         :aria-label="t('reports.refresh')"
         :title="t('reports.refresh')"
-        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--color-ink-soft)] ring-1 ring-inset ring-[var(--color-line)] transition hover:bg-[var(--color-paper)] disabled:opacity-50"
+        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--color-ink-soft)] ring-1 ring-inset ring-[var(--color-line)] transition hover:bg-[var(--color-paper)] disabled:opacity-50"
         @click="load({ soft: true })"
       >
-        <Icon name="refresh" :size="14" :class="{ 'animate-spin': refreshing }" />
+        <Icon name="refresh" :size="16" :class="{ 'animate-spin': refreshing }" />
       </button>
     </PageTitle>
 
-    <!-- Period switch: one segmented control -->
+    <!-- Period + date: stays in reach while scrolling a long list -->
     <div
-      class="mb-4 grid grid-cols-3 gap-1 rounded-xl bg-[var(--color-paper)] p-1 ring-1 ring-inset ring-[var(--color-line)] md:max-w-md"
-      role="tablist"
-      :aria-label="t('reports.tabs_hint')"
+      class="sticky top-[calc(4rem+env(safe-area-inset-top))] z-10 -mx-4 mb-3 flex flex-wrap items-center gap-2 border-b border-[var(--color-line)] bg-[var(--color-paper)]/95 px-4 py-2 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-none"
     >
-      <button
-        v-for="p in periods"
-        :key="p[0]"
-        type="button"
-        role="tab"
-        :aria-selected="period === p[0]"
-        class="flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition"
-        :class="
-          period === p[0]
-            ? 'bg-[var(--color-ink)] text-white shadow-sm'
-            : 'text-[var(--color-ink-soft)]'
-        "
-        @click="period = p[0]"
+      <div
+        class="grid flex-1 grid-cols-3 gap-1 rounded-xl bg-[var(--color-surface)] p-1 ring-1 ring-inset ring-[var(--color-line)] sm:max-w-xs"
+        role="tablist"
+        :aria-label="t('reports.tabs_hint')"
       >
-        <Icon :name="p[2]" :size="14" />
-        {{ t(p[1]) }}
-      </button>
+        <button
+          v-for="p in PERIODS"
+          :key="p[0]"
+          type="button"
+          role="tab"
+          :aria-selected="period === p[0]"
+          class="min-h-9! rounded-lg text-sm font-semibold transition"
+          :class="
+            period === p[0]
+              ? 'bg-[var(--color-ink)] text-white shadow-sm'
+              : 'text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]'
+          "
+          @click="go({ period: p[0] })"
+        >
+          {{ t(p[1]) }}
+        </button>
+      </div>
+
+      <div
+        class="flex w-full items-center gap-1 rounded-xl bg-[var(--color-surface)] p-1 ring-1 ring-inset ring-[var(--color-line)] sm:w-auto"
+      >
+        <button
+          type="button"
+          :disabled="!report"
+          :aria-label="t('reports.prev')"
+          :title="t('reports.prev')"
+          class="flex min-h-9! w-10 shrink-0 items-center justify-center rounded-lg text-[var(--color-ink-soft)] transition hover:bg-[var(--color-paper)] disabled:opacity-40"
+          @click="shift(-1)"
+        >
+          <Icon name="chevron-left" :size="18" />
+        </button>
+
+        <!-- The whole label opens the native calendar (phones and desktops) -->
+        <label
+          class="relative flex min-h-9 min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-2 text-sm font-bold capitalize hover:bg-[var(--color-paper)] sm:min-w-44"
+          :title="t('reports.pick_date')"
+        >
+          <Icon name="calendar" :size="15" class="shrink-0 text-[var(--color-accent)]" />
+          <span class="truncate">{{ periodLabel || '…' }}</span>
+          <input
+            type="date"
+            class="absolute inset-0 min-h-0! w-full cursor-pointer opacity-0"
+            :value="range?.start"
+            :max="report?.today"
+            :aria-label="t('reports.pick_date')"
+            @click="openPicker"
+            @change="pickDate"
+          />
+        </label>
+
+        <button
+          type="button"
+          :disabled="!report || isCurrent"
+          :aria-label="t('reports.next')"
+          :title="t('reports.next')"
+          class="flex min-h-9! w-10 shrink-0 items-center justify-center rounded-lg text-[var(--color-ink-soft)] transition hover:bg-[var(--color-paper)] disabled:opacity-40"
+          @click="shift(1)"
+        >
+          <Icon name="chevron-right" :size="18" />
+        </button>
+        <button
+          v-if="report && !isCurrent"
+          type="button"
+          class="min-h-9! shrink-0 rounded-lg bg-[var(--color-accent-soft)] px-2.5 text-xs font-bold text-[var(--color-accent)] transition hover:bg-[var(--color-accent)] hover:text-white"
+          @click="go({ date: null })"
+        >
+          {{ t('reports.go_today') }}
+        </button>
+      </div>
     </div>
 
+    <!-- Skeleton while the first figures load -->
     <div v-if="!report" class="space-y-3">
-      <div class="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-6">
+      <div class="grid grid-cols-2 gap-2.5 md:grid-cols-4">
         <div
-          v-for="i in 6"
+          v-for="i in 4"
           :key="i"
           class="h-20 animate-pulse rounded-xl bg-[var(--color-line)]/40"
         />
       </div>
-      <div class="grid gap-3 lg:grid-cols-2">
-        <div class="h-80 animate-pulse rounded-2xl bg-[var(--color-line)]/40" />
-        <div class="h-80 animate-pulse rounded-2xl bg-[var(--color-line)]/40" />
-      </div>
+      <div class="h-72 animate-pulse rounded-2xl bg-[var(--color-line)]/40" />
     </div>
 
     <div v-else class="space-y-3" :class="{ 'opacity-60 transition-opacity': refreshing }">
-      <div
-        class="grid grid-cols-2 gap-2.5 md:grid-cols-3"
-        :class="statTiles.length === 6 ? 'xl:grid-cols-6' : 'xl:grid-cols-5'"
-      >
+      <div class="grid grid-cols-2 gap-2.5 md:grid-cols-4">
         <StatTile
-          v-for="tile in statTiles"
+          v-for="tile in tiles"
           :key="tile.label"
           :icon="tile.icon"
           :label="tile.label"
           :value="tile.value"
-          :hint="tile.hint"
           :tone="tile.tone"
           :unit="tile.unit ?? null"
           :delta="tile.delta ?? null"
@@ -332,334 +472,419 @@ const stockLists = computed(() => [
         />
       </div>
 
-      <!-- Wide screens: the long per-day / per-hour list on the left, the
-           shorter cards stacked on the right. Phones: one column. -->
       <div
-        class="grid grid-cols-[minmax(0,1fr)] items-start gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]"
+        class="grid grid-cols-[minmax(0,1fr)] items-start gap-3 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]"
       >
-        <div class="space-y-3">
-          <!-- Sales per day / per hour -->
-          <SectionCard
-            icon="calendar"
-            :title="isHourly ? t('reports.series_hours') : t('reports.series_days')"
-            :subtitle="isHourly ? t('reports.series_hours_hint') : t('reports.series_days_hint')"
+        <!-- Details: what was sold, per day/hour, receipts -->
+        <section
+          class="overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)]"
+        >
+          <div
+            class="flex gap-1 overflow-x-auto border-b border-[var(--color-line)] p-1.5"
+            role="tablist"
           >
-            <div
-              v-if="isHourly && seriesEmpty"
-              class="flex flex-col items-center gap-1.5 py-6 text-center"
+            <button
+              v-for="item in tabs"
+              :key="item[0]"
+              type="button"
+              role="tab"
+              :aria-selected="tab === item[0]"
+              class="flex min-h-9! flex-1 shrink-0 items-center justify-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold transition sm:flex-none sm:px-3"
+              :class="
+                tab === item[0]
+                  ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
+                  : 'text-[var(--color-ink-soft)] hover:bg-[var(--color-paper)]'
+              "
+              @click="tab = item[0]"
             >
+              <Icon :name="item[2]" :size="15" class="hidden sm:block" />
+              {{ t(item[1]) }}
               <span
-                class="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-paper)] text-[var(--color-ink-soft)]"
+                v-if="item[3]"
+                class="rounded-full bg-[var(--color-surface)] px-1.5 font-mono text-[11px] ring-1 ring-inset ring-current/20"
               >
-                <Icon name="cart" :size="18" />
+                {{ item[3] }}
               </span>
-              <p class="text-sm font-semibold">{{ t('reports.series_empty') }}</p>
+            </button>
+          </div>
+
+          <!-- What was sold -->
+          <div v-if="tab === 'products'" class="p-3">
+            <div
+              v-if="!report.products.length"
+              class="flex flex-col items-center gap-1.5 py-8 text-center"
+            >
+              <Icon name="cart" :size="22" class="text-[var(--color-ink-soft)]" />
+              <p class="text-sm font-semibold">{{ t('reports.no_sales') }}</p>
             </div>
 
             <template v-else>
-              <ul class="divide-y divide-[var(--color-line)]">
-                <li v-for="row in seriesRows" :key="row.key" class="flex items-center gap-3 py-2">
-                  <span class="w-14 shrink-0 leading-tight">
-                    <span class="flex items-center gap-1 font-mono text-sm font-bold">
-                      {{ row.title }}
-                      <Icon
-                        v-if="row.key === bestKey"
-                        name="trophy"
-                        :size="13"
-                        class="text-amber-500"
-                        :title="isHourly ? t('reports.best_hour') : t('reports.best_day')"
+              <div class="mb-2 flex flex-wrap items-center gap-2">
+                <div v-if="report.products.length > 6" class="relative min-w-0 flex-1 basis-40">
+                  <Icon
+                    name="search"
+                    :size="15"
+                    class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-ink-soft)]"
+                  />
+                  <input
+                    v-model="productQuery"
+                    type="search"
+                    :placeholder="t('reports.product_search')"
+                    class="min-h-9! w-full rounded-lg border border-[var(--color-line)] py-1.5 pl-8 pr-2 text-sm"
+                  />
+                </div>
+                <div class="flex shrink-0 gap-1" role="group" :aria-label="t('reports.sort_by')">
+                  <button
+                    v-for="s in SORTS"
+                    :key="s[0]"
+                    type="button"
+                    class="min-h-9! rounded-full px-2.5 text-xs font-semibold transition"
+                    :class="
+                      productSort === s[0]
+                        ? 'bg-[var(--color-ink)] text-white'
+                        : 'text-[var(--color-ink-soft)] ring-1 ring-inset ring-[var(--color-line)]'
+                    "
+                    @click="productSort = s[0]"
+                  >
+                    {{ t(s[1]) }}
+                  </button>
+                </div>
+              </div>
+
+              <ol class="divide-y divide-[var(--color-line)]">
+                <li
+                  v-for="(row, index) in visibleProducts"
+                  :key="row.product_id"
+                  class="flex items-center gap-2.5 py-2"
+                >
+                  <span
+                    class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--color-paper)] font-mono text-[10px] font-bold text-[var(--color-ink-soft)]"
+                  >
+                    {{ index + 1 }}
+                  </span>
+                  <div class="min-w-0 flex-1">
+                    <RouterLink
+                      :to="{ name: 'product-edit', params: { id: row.product_id } }"
+                      class="block truncate text-sm font-semibold hover:text-[var(--color-accent)]"
+                    >
+                      {{ row.name }}
+                    </RouterLink>
+                    <span
+                      class="mt-1 block h-1 overflow-hidden rounded-full bg-[var(--color-paper)]"
+                    >
+                      <span
+                        class="bar block h-full rounded-full bg-[var(--color-accent)]"
+                        :style="{ width: `${(Number(row[productSort]) / productMax) * 100}%` }"
                       />
                     </span>
                     <span
-                      class="text-[11px]"
+                      class="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-[var(--color-ink-soft)]"
+                    >
+                      <span class="font-mono text-sm font-bold text-[var(--color-ink)]">
+                        {{ formatQty(row.qty) }}
+                      </span>
+                      <UnitBadge :unit="row.unit" />
+                      <span>· {{ t('reports.in_receipts', { n: row.receipts }) }}</span>
+                    </span>
+                  </div>
+                  <span class="shrink-0 self-start text-right leading-tight">
+                    <span class="block whitespace-nowrap font-mono text-sm font-bold">
+                      {{ formatMoney(row.revenue) }}
+                    </span>
+                    <span
+                      class="block whitespace-nowrap font-mono text-[11px]"
                       :class="
-                        row.isToday
-                          ? 'font-bold text-[var(--color-accent)]'
-                          : 'text-[var(--color-ink-soft)]'
+                        row.profit < 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-accent)]'
                       "
                     >
-                      {{ row.isToday ? t('reports.today') : row.sub }}
+                      {{ row.profit > 0 ? '+' : '' }}{{ formatMoney(row.profit) }}
                     </span>
-                  </span>
-
-                  <span class="min-w-0 flex-1">
-                    <span class="block h-1.5 overflow-hidden rounded-full bg-[var(--color-paper)]">
-                      <span
-                        class="bar block h-full rounded-full"
-                        :class="row.key === bestKey ? 'bg-[var(--color-accent)]' : 'bg-teal-300'"
-                        :style="{ width: `${(row.revenue / seriesMax) * 100}%` }"
-                      />
-                    </span>
-                    <span
-                      class="mt-1 flex items-center gap-2.5 text-[10px] text-[var(--color-ink-soft)]"
-                    >
-                      <template v-if="row.count">
-                        <span
-                          class="flex items-center gap-0.5"
-                          :title="t('reports.sales_count', { n: row.count })"
-                        >
-                          <Icon name="cart" :size="10" />{{ row.count }}
-                        </span>
-                        <span
-                          class="flex items-center gap-0.5 text-[var(--color-accent)]"
-                          :title="t('reports.profit_line', { amount: formatMoney(row.profit) })"
-                        >
-                          <Icon name="trend" :size="10" />{{ formatMoney(row.profit) }}
-                        </span>
-                      </template>
-                      <template v-else>{{ t('reports.no_sale_day') }}</template>
-                    </span>
-                  </span>
-
-                  <span
-                    class="w-24 shrink-0 text-right font-mono text-sm font-bold"
-                    :class="{ 'font-normal text-[var(--color-ink-soft)]': !row.revenue }"
-                  >
-                    {{ row.revenue ? formatMoney(row.revenue) : '—' }}
                   </span>
                 </li>
-              </ul>
+              </ol>
+              <p
+                v-if="!productRows.length"
+                class="py-4 text-center text-sm text-[var(--color-ink-soft)]"
+              >
+                {{ t('reports.no_match') }}
+              </p>
+
+              <button
+                v-if="!productQuery && !showAllProducts && productRows.length > PRODUCT_PREVIEW"
+                type="button"
+                class="mt-1 w-full rounded-lg py-2 text-sm font-semibold text-[var(--color-accent)] hover:bg-[var(--color-accent-soft)]"
+                @click="showAllProducts = true"
+              >
+                {{ t('reports.show_all', { n: productRows.length }) }}
+              </button>
 
               <div
-                class="mt-1 flex items-center justify-between rounded-lg bg-[var(--color-accent-soft)] px-3 py-2 text-sm font-bold text-[var(--color-accent)]"
+                class="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg bg-[var(--color-accent-soft)] px-3 py-2 text-sm font-bold text-[var(--color-accent)]"
               >
-                <span class="flex items-center gap-1.5"
-                  ><Icon name="wallet" :size="15" />{{ t('reports.period_total') }}</span
-                >
-                <span class="font-mono"
-                  >{{ formatMoney(report.stats.revenue) }} {{ t('common.som') }}</span
-                >
+                <span>{{ t('reports.items_total', { n: report.products.length }) }}</span>
+                <span class="flex flex-wrap gap-x-3 font-mono">
+                  <span class="whitespace-nowrap"
+                    >{{ formatMoney(productTotals.revenue) }} {{ t('common.som') }}</span
+                  >
+                  <span class="whitespace-nowrap text-xs font-semibold">
+                    {{ t('reports.profit') }}: {{ formatMoney(productTotals.profit) }}
+                  </span>
+                </span>
               </div>
             </template>
-          </SectionCard>
-        </div>
+          </div>
+
+          <!-- Per day (week / month) or per hour (one day) -->
+          <div v-else-if="tab === 'series'" class="p-3">
+            <div
+              v-if="seriesEmpty && isHourly"
+              class="flex flex-col items-center gap-1.5 py-8 text-center"
+            >
+              <Icon name="cart" :size="22" class="text-[var(--color-ink-soft)]" />
+              <p class="text-sm font-semibold">{{ t('reports.no_sales') }}</p>
+            </div>
+            <template v-else>
+              <p v-if="!isHourly" class="mb-1 text-[11px] text-[var(--color-ink-soft)]">
+                {{ t('reports.day_tap_hint') }}
+              </p>
+              <ul class="divide-y divide-[var(--color-line)]">
+                <li v-for="row in seriesRows" :key="row.key">
+                  <component
+                    :is="isHourly ? 'div' : 'button'"
+                    :type="isHourly ? undefined : 'button'"
+                    class="flex w-full items-center gap-3 py-2 text-left"
+                    :class="
+                      isHourly ? '' : 'rounded-lg px-1 transition hover:bg-[var(--color-paper)]'
+                    "
+                    @click="openDay(row.key)"
+                  >
+                    <span class="w-14 shrink-0 leading-tight">
+                      <span class="flex items-center gap-1 font-mono text-sm font-bold">
+                        {{ row.title }}
+                        <Icon
+                          v-if="row.key === bestKey"
+                          name="trophy"
+                          :size="12"
+                          class="text-amber-500"
+                        />
+                      </span>
+                      <span class="text-[11px] text-[var(--color-ink-soft)]">{{ row.sub }}</span>
+                    </span>
+                    <span class="min-w-0 flex-1">
+                      <span
+                        class="block h-1.5 overflow-hidden rounded-full bg-[var(--color-paper)]"
+                      >
+                        <span
+                          class="bar block h-full rounded-full"
+                          :class="row.key === bestKey ? 'bg-[var(--color-accent)]' : 'bg-teal-300'"
+                          :style="{ width: `${(row.revenue / seriesMax) * 100}%` }"
+                        />
+                      </span>
+                      <span class="mt-1 block text-[11px] text-[var(--color-ink-soft)]">
+                        <template v-if="row.count">
+                          {{ t('reports.sales_count', { n: row.count }) }} ·
+                          <span class="text-[var(--color-accent)]">
+                            {{ t('reports.profit_line', { amount: formatMoney(row.profit) }) }}
+                          </span>
+                        </template>
+                        <template v-else>{{ t('reports.no_sale_day') }}</template>
+                      </span>
+                    </span>
+                    <span
+                      class="shrink-0 whitespace-nowrap text-right font-mono text-sm font-bold"
+                      :class="{ 'font-normal text-[var(--color-ink-soft)]': !row.revenue }"
+                    >
+                      {{ row.revenue ? formatMoney(row.revenue) : '—' }}
+                    </span>
+                    <Icon
+                      v-if="!isHourly"
+                      name="chevron-right"
+                      :size="14"
+                      class="shrink-0 text-[var(--color-ink-soft)]"
+                    />
+                  </component>
+                </li>
+              </ul>
+            </template>
+          </div>
+
+          <!-- Receipts of the day -->
+          <div v-else class="p-3">
+            <div v-if="receipts.loading.value" class="space-y-2">
+              <div
+                v-for="i in 4"
+                :key="i"
+                class="h-14 animate-pulse rounded-lg bg-[var(--color-line)]/40"
+              />
+            </div>
+            <p
+              v-else-if="!receipts.items.value.length"
+              class="py-8 text-center text-sm font-semibold text-[var(--color-ink-soft)]"
+            >
+              {{ t('reports.receipts_empty') }}
+            </p>
+            <ul v-else class="divide-y divide-[var(--color-line)]">
+              <li v-for="sale in receipts.items.value" :key="sale.id">
+                <RouterLink
+                  :to="{ name: 'receipt', params: { id: sale.id } }"
+                  class="flex items-center gap-3 rounded-lg px-1 py-2 transition hover:bg-[var(--color-paper)]"
+                  :class="{ 'opacity-60': sale.status === 'cancelled' }"
+                >
+                  <span class="w-12 shrink-0 font-mono text-sm font-bold">{{
+                    timeOf(sale.sold_at)
+                  }}</span>
+                  <span class="min-w-0 flex-1 leading-tight">
+                    <span class="block truncate text-sm">
+                      {{ sale.items.map((item) => item.product_name).join(', ') }}
+                    </span>
+                    <span
+                      class="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--color-ink-soft)]"
+                    >
+                      <span
+                        class="rounded px-1.5 py-px font-semibold"
+                        :class="PAY_TONE[sale.payment_type]"
+                      >
+                        {{ t(`reports.pay_${sale.payment_type}`) }}
+                      </span>
+                      <span
+                        v-if="sale.status === 'cancelled'"
+                        class="font-bold text-[var(--color-danger)]"
+                      >
+                        {{ t('reports.cancelled') }}
+                      </span>
+                      <span v-if="sale.customer_name" class="truncate">{{
+                        sale.customer_name
+                      }}</span>
+                      <span v-if="sale.sold_by_name" class="truncate"
+                        >· {{ sale.sold_by_name }}</span
+                      >
+                    </span>
+                  </span>
+                  <span
+                    class="shrink-0 whitespace-nowrap font-mono text-sm font-bold"
+                    :class="{ 'line-through': sale.status === 'cancelled' }"
+                  >
+                    {{ formatMoney(sale.total) }}
+                  </span>
+                </RouterLink>
+              </li>
+            </ul>
+            <LoadMore
+              v-if="receipts.hasMore.value"
+              :loading="receipts.loadingMore.value"
+              @more="receipts.more"
+            />
+          </div>
+        </section>
 
         <div class="space-y-3">
-          <!-- Credit: how sales were paid, what was sold on credit, who owes -->
-          <SectionCard
-            icon="ledger"
-            :title="t('reports.debt_title')"
-            :subtitle="t('reports.debt_subtitle')"
-          >
-            <p
-              class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]"
-            >
-              {{ t('reports.pay_split') }}
-            </p>
-            <div class="flex h-2.5 overflow-hidden rounded-full bg-[var(--color-paper)]">
+          <!-- How it was paid, and credit -->
+          <SectionCard icon="wallet" :title="t('reports.pay_title')">
+            <div class="flex h-2 overflow-hidden rounded-full bg-[var(--color-paper)]">
               <span
                 v-for="part in split"
                 :key="part.key"
                 class="split-seg h-full"
                 :class="part.color"
-                :style="{ width: splitHasData ? `${part.pct}%` : '0%' }"
+                :style="{ width: `${part.pct}%` }"
               />
             </div>
             <dl class="mt-2 grid grid-cols-3 gap-2">
               <div v-for="part in split" :key="part.key" class="min-w-0">
-                <dt class="flex items-center gap-1.5 text-[11px] text-[var(--color-ink-soft)]">
+                <dt class="flex items-center gap-1 text-[11px] text-[var(--color-ink-soft)]">
                   <span class="h-2 w-2 shrink-0 rounded-full" :class="part.color" />
                   <span class="truncate">{{ part.label }}</span>
-                  <span class="font-mono font-bold">{{ part.pct }}%</span>
                 </dt>
                 <dd class="truncate font-mono text-sm font-bold">{{ formatMoney(part.value) }}</dd>
+                <dd class="font-mono text-[10px] text-[var(--color-ink-soft)]">{{ part.pct }}%</dd>
               </div>
             </dl>
 
-            <div class="mt-3 grid grid-cols-2 gap-2.5">
-              <StatTile
-                icon="ledger"
-                tone="warn"
-                :label="t('reports.debt_sold')"
-                :value="debt.sold"
-                :hint="
-                  t('reports.debt_sold_hint', {
-                    n: debt.sold_count,
-                    pct: report.stats.revenue
-                      ? Math.round((debt.sold / report.stats.revenue) * 100)
-                      : 0,
-                  })
-                "
-              />
-              <StatTile
-                icon="cash"
-                tone="accent"
-                :label="t('reports.debt_paid')"
-                :value="debt.paid"
-                :hint="t('reports.debt_paid_hint')"
-              />
+            <dl class="mt-3 space-y-1.5 border-t border-[var(--color-line)] pt-3 text-sm">
+              <div class="flex items-baseline justify-between gap-2">
+                <dt class="text-[var(--color-ink-soft)]">
+                  {{ t('reports.debt_sold') }}
+                  <span class="text-[11px]">({{ debt.sold_count }})</span>
+                </dt>
+                <dd class="whitespace-nowrap font-mono font-bold text-[var(--color-warn)]">
+                  {{ formatMoney(debt.sold) }}
+                </dd>
+              </div>
+              <div class="flex items-baseline justify-between gap-2">
+                <dt class="text-[var(--color-ink-soft)]">{{ t('reports.debt_paid') }}</dt>
+                <dd class="whitespace-nowrap font-mono font-bold text-[var(--color-accent)]">
+                  {{ formatMoney(debt.paid) }}
+                </dd>
+              </div>
               <RouterLink
-                :to="{ name: 'customers', query: { filter: 'debtors' } }"
-                class="col-span-2 block rounded-xl transition hover:opacity-80"
+                :to="{ name: 'customers' }"
+                class="-mx-1.5 flex items-baseline justify-between gap-2 rounded-lg px-1.5 py-1 transition hover:bg-[var(--color-paper)]"
                 :title="t('reports.see_debtors')"
               >
-                <StatTile
-                  icon="wallet"
-                  :tone="debt.outstanding > 0 ? 'danger' : 'default'"
-                  :label="t('reports.debt_outstanding')"
-                  :value="debt.outstanding"
-                  :hint="t('reports.debt_outstanding_hint', { n: debt.debtors })"
-                />
+                <span class="text-[var(--color-ink-soft)]">
+                  {{ t('reports.debt_outstanding') }}
+                  <span class="text-[11px]"
+                    >({{ t('reports.debt_outstanding_hint', { n: debt.debtors }) }})</span
+                  >
+                </span>
+                <span
+                  class="whitespace-nowrap font-mono font-bold"
+                  :class="debt.outstanding > 0 ? 'text-[var(--color-danger)]' : ''"
+                >
+                  {{ formatMoney(debt.outstanding) }}
+                </span>
               </RouterLink>
-            </div>
+              <div class="flex items-baseline justify-between gap-2">
+                <dt class="text-[var(--color-ink-soft)]">{{ t('reports.losses') }}</dt>
+                <dd
+                  class="whitespace-nowrap font-mono font-bold"
+                  :class="report.write_offs_total > 0 ? 'text-[var(--color-danger)]' : ''"
+                >
+                  {{ formatMoney(report.write_offs_total) }}
+                </dd>
+              </div>
+            </dl>
           </SectionCard>
 
-          <!-- Best sellers: a ranked list with bars -->
-          <SectionCard icon="trophy" :title="t('reports.top')" :subtitle="t('reports.top_hint')">
-            <ol v-if="topProducts.length" class="space-y-2.5">
-              <li v-for="(product, index) in topProducts" :key="product.product__name">
-                <div class="mb-1 flex items-center gap-2 text-sm">
-                  <span
-                    class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-paper)] font-mono text-[10px] font-bold text-[var(--color-ink-soft)]"
-                  >
-                    {{ index + 1 }}
-                  </span>
-                  <RouterLink
-                    v-if="product.product_id"
-                    :to="{ name: 'product-edit', params: { id: product.product_id } }"
-                    class="min-w-0 flex-1 truncate font-semibold hover:text-[var(--color-accent)] hover:underline"
-                  >
-                    {{ product.product__name }}
-                  </RouterLink>
-                  <span v-else class="min-w-0 flex-1 truncate font-semibold">
-                    {{ product.product__name }}
-                  </span>
-                  <span class="font-mono text-sm font-bold">{{ Number(product.qty_sold) }}</span>
-                  <UnitBadge :unit="product.product__unit" />
-                </div>
-                <div class="flex items-center gap-2 pl-7">
-                  <span class="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--color-paper)]">
-                    <span
-                      class="bar block h-full rounded-full bg-[var(--color-accent)]"
-                      :style="{ width: `${(Number(product.qty_sold) / topMax) * 100}%` }"
-                    />
-                  </span>
-                  <span class="font-mono text-[10px] text-[var(--color-ink-soft)]">
-                    {{ formatMoney(product.revenue) }}
-                  </span>
-                </div>
-              </li>
-            </ol>
-            <div v-else class="flex flex-col items-center gap-1.5 py-6 text-center">
-              <span
-                class="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-paper)] text-[var(--color-ink-soft)]"
-              >
-                <Icon name="cart" :size="18" />
-              </span>
-              <p class="text-sm font-semibold">{{ t('reports.no_sales') }}</p>
-              <p class="text-xs text-[var(--color-ink-soft)]">{{ t('reports.no_sales_hint') }}</p>
-            </div>
-          </SectionCard>
-
-          <StatTile
-            icon="warning"
-            :tone="report.write_offs_total > 0 ? 'danger' : 'default'"
-            :label="t('reports.losses')"
-            :value="report.write_offs_total"
-            :hint="t('reports.losses_hint')"
-          />
-
-          <!-- Downloads -->
-          <SectionCard icon="download" :title="t('reports.dl_title')">
-            <template #aside>
-              <span
-                class="shrink-0 rounded-full bg-[var(--color-paper)] px-2 py-1 text-[10px] font-semibold text-[var(--color-ink-soft)] ring-1 ring-inset ring-[var(--color-line)]"
-              >
-                {{
-                  t('reports.dl_period', {
-                    period: t(`reports.period_name.${period}`),
-                    range: rangeLabel,
-                  })
-                }}
-              </span>
-            </template>
-
+          <!-- Files: the period report and the two stock lists -->
+          <SectionCard icon="download" :title="t('reports.files_title')">
             <div class="grid grid-cols-2 gap-2">
               <button
-                v-for="file in fileButtons"
-                :key="file.ext"
+                v-for="file in files"
+                :key="file.id"
                 type="button"
                 :disabled="busy !== null"
-                class="flex items-center gap-2.5 rounded-xl p-3 text-left transition active:scale-[0.98] disabled:opacity-60"
+                class="flex min-w-0 items-center gap-2 rounded-xl p-2.5 text-left transition active:scale-[0.98] disabled:opacity-60"
                 :class="
-                  file.primary
-                    ? 'bg-[var(--color-accent)] text-white'
-                    : 'border border-[var(--color-line)] bg-[var(--color-surface)]'
+                  file.tone ??
+                  'border border-[var(--color-line)] bg-[var(--color-surface)] hover:bg-[var(--color-paper)]'
                 "
-                @click="downloadReport(file.ext)"
+                @click="file.run"
               >
                 <span
-                  class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
-                  :class="
-                    file.primary
-                      ? 'bg-white/20'
-                      : 'bg-[var(--color-paper)] text-[var(--color-ink-soft)]'
-                  "
+                  class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+                  :class="file.iconTone ?? 'bg-[var(--color-paper)] text-[var(--color-ink-soft)]'"
                 >
-                  <Icon :name="busy === file.ext ? 'clock' : file.icon" :size="18" />
+                  <Icon :name="busy === file.id ? 'clock' : file.icon" :size="16" />
                 </span>
                 <span class="min-w-0 leading-tight">
-                  <span class="block text-sm font-bold">
-                    {{ busy === file.ext ? t('reports.dl_preparing') : file.title }}
+                  <span class="block truncate text-xs font-bold">
+                    {{ busy === file.id ? t('reports.dl_preparing') : file.title }}
                   </span>
                   <span
-                    class="block truncate text-[11px]"
-                    :class="file.primary ? 'text-white/80' : 'text-[var(--color-ink-soft)]'"
+                    class="block truncate text-[10px]"
+                    :class="file.subTone ?? 'text-[var(--color-ink-soft)]'"
                   >
                     {{ file.sub }}
                   </span>
                 </span>
               </button>
             </div>
-
             <div class="mt-2">
               <InfoHint :label="t('reports.dl_steps_title')">
                 <p>{{ t('reports.dl_excel_hint') }}</p>
-                <p>{{ t('reports.dl_step1') }}</p>
-                <p>{{ t('reports.dl_step2') }}</p>
-                <p>{{ t('reports.dl_step3') }}</p>
                 <p>{{ t('reports.dl_where') }}</p>
               </InfoHint>
-            </div>
-          </SectionCard>
-
-          <SectionCard icon="box" :title="t('reports.stock_lists')">
-            <div class="divide-y divide-[var(--color-line)]">
-              <div v-for="item in stockLists" :key="item.id" class="flex items-center gap-2">
-                <button
-                  type="button"
-                  :disabled="busy !== null"
-                  class="flex min-w-0 flex-1 items-center gap-2.5 py-2 text-left transition active:opacity-70 disabled:opacity-60"
-                  @click="item.run"
-                >
-                  <span
-                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-                    :class="item.tone"
-                  >
-                    <Icon :name="item.icon" :size="16" />
-                  </span>
-                  <span class="min-w-0 flex-1 leading-tight">
-                    <span class="block truncate text-sm font-semibold">
-                      {{ busy === item.id ? t('reports.dl_preparing') : item.title }}
-                    </span>
-                    <span class="block truncate text-[11px] text-[var(--color-ink-soft)]">{{
-                      item.hint
-                    }}</span>
-                  </span>
-                  <span
-                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-ink)] text-white"
-                  >
-                    <Icon name="download" :size="14" />
-                  </span>
-                </button>
-                <RouterLink
-                  v-if="item.view"
-                  :to="item.view"
-                  class="shrink-0 rounded-full px-2.5 py-1.5 text-xs font-semibold text-[var(--color-accent)] ring-1 ring-inset ring-[var(--color-accent)]/40 transition hover:bg-[var(--color-accent-soft)]"
-                >
-                  {{ t('reports.view') }}
-                </RouterLink>
-              </div>
             </div>
           </SectionCard>
         </div>

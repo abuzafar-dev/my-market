@@ -50,6 +50,7 @@ class SaleItemReadSerializer(serializers.ModelSerializer):
 class SaleReadSerializer(serializers.ModelSerializer):
     items = SaleItemReadSerializer(many=True, read_only=True)
     customer_name = serializers.CharField(source="customer.full_name", read_only=True, default=None)
+    sold_by_name = serializers.CharField(source="sold_by.full_name", read_only=True, default=None)
     can_cancel = serializers.SerializerMethodField()
 
     def get_can_cancel(self, sale: Sale) -> bool:
@@ -68,6 +69,7 @@ class SaleReadSerializer(serializers.ModelSerializer):
             "status",
             "customer",
             "customer_name",
+            "sold_by_name",
             "items",
             "sold_at",
             "cancelled_at",
