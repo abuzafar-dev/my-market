@@ -151,6 +151,18 @@ export default {
     low: 'Мало осталось',
     expiring: 'Срок годности',
     none: 'Товары не найдены',
+    search: 'Название или штрихкод...',
+    category: 'Категория',
+    all_categories: 'Все категории',
+    sort: 'Сортировка',
+    sort_default: 'Порядок: обычный',
+    sort_name: 'Название (А–Я)',
+    sort_stock_asc: 'Остаток: по возрастанию',
+    sort_stock_desc: 'Остаток: по убыванию',
+    sort_price_asc: 'Цена: сначала дешёвые',
+    sort_price_desc: 'Цена: сначала дорогие',
+    reset: 'Сбросить',
+    restock: 'Приход',
   },
 
   product_form: {

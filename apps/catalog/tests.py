@@ -327,3 +327,52 @@ class ProductImageUploadTests(CatalogTestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("image", response.json()["error"]["fields"])
         self.assertFalse(Product.objects.filter(name="Rasmli").exists())
+
+
+class ProductListFilterTests(CatalogTestCase):
+    """The products page's category / ordering / barcode-search parameters."""
+
+    def setUp(self):
+        super().setUp()
+        from rest_framework.test import APIClient
+
+        self.client = APIClient()
+        self.client.force_authenticate(self.user)
+        self.make_batch(qty=Decimal("10"), sale_price=3000)  # Suv
+        self.bread = Product.objects.create(
+            shop=self.shop,
+            name="Non",
+            unit=Product.Unit.PIECE,
+            barcode="4780001",
+            markup_amount=0,
+            min_stock=Decimal("1"),
+        )
+        Batch.objects.create(
+            shop=self.shop,
+            product=self.bread,
+            qty_initial=Decimal("2"),
+            qty_remaining=Decimal("2"),
+            cost_price=1000,
+            sale_price=5000,
+            created_by=self.user,
+        )
+
+    def names(self, **params):
+        response = self.client.get("/api/products/", params)
+        self.assertEqual(response.status_code, 200)
+        return [product["name"] for product in response.json()["data"]["results"]]
+
+    def test_search_matches_barcode(self):
+        self.assertEqual(self.names(q="4780001"), ["Non"])
+
+    def test_category_filter(self):
+        self.assertEqual(self.names(category=str(self.category.id)), ["Suv"])
+        self.assertEqual(self.names(category="none"), ["Non"])
+        self.assertEqual(self.names(category="not-a-uuid"), [])
+
+    def test_ordering(self):
+        self.assertEqual(self.names(ordering="stock"), ["Non", "Suv"])
+        self.assertEqual(self.names(ordering="-stock"), ["Suv", "Non"])
+        self.assertEqual(self.names(ordering="-price"), ["Non", "Suv"])
+        self.assertEqual(self.names(ordering="price"), ["Suv", "Non"])
+        self.assertEqual(self.names(ordering="drop table"), ["Non", "Suv"])  # falls back to name

@@ -1,7 +1,9 @@
 """Product, batch, and purchase-list endpoints (TZ v2 8.2)."""
 
+import uuid
 from collections import defaultdict
 
+from django.db.models import F, Q
 from django.http import Http404
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -46,6 +48,17 @@ class CategoryViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, viewsets.G
         return Category.objects.filter(shop=self.request.user.shop).order_by("name")
 
 
+# ?ordering= values the product list accepts; anything else falls back to the
+# default order, never to a raw field name from the client.
+PRODUCT_ORDERINGS = {
+    "name": ("name",),
+    "stock": ("stock", "name"),
+    "-stock": ("-stock", "name"),
+    "price": (F("fifo_price").asc(nulls_last=True), "name"),
+    "-price": (F("fifo_price").desc(nulls_last=True), "name"),
+}
+
+
 class ProductViewSet(viewsets.ModelViewSet):
     # No PUT: products are patched in place. DELETE erases one entered by
     # mistake (refused once it has been sold — then it is archived instead).
@@ -75,22 +88,37 @@ class ProductViewSet(viewsets.ModelViewSet):
         if self.request.query_params.get("quick"):
             return quick_products(shop)
 
-        filter_ = self.request.query_params.get("filter")
+        params = self.request.query_params
+        filter_ = params.get("filter")
         if filter_ == "low":
-            return with_price(low_stock_products(shop)).select_related("category")
-
-        queryset = queryset.filter(is_active=True)
+            # Emptiest first unless the page asks for another order.
+            queryset = with_price(low_stock_products(shop)).select_related("category")
+            default_ordering = ("stock", "name")
+        else:
+            queryset = queryset.filter(is_active=True)
+            default_ordering = ("name",)
         if filter_ == "expiring":
             product_ids = expiring_batches(shop, shop.get_settings().expiry_warn_days).values_list(
                 "product_id", flat=True
             )
             queryset = queryset.filter(id__in=set(product_ids))
 
-        search = self.request.query_params.get("q")
+        search = params.get("q", "").strip()
         if search:
-            queryset = queryset.filter(name__icontains=search)
+            # A scanned or typed barcode finds its product on this list too.
+            queryset = queryset.filter(Q(name__icontains=search) | Q(barcode=search))
 
-        return queryset.order_by("name")
+        category = params.get("category")
+        if category == "none":
+            queryset = queryset.filter(category__isnull=True)
+        elif category:
+            try:
+                queryset = queryset.filter(category_id=uuid.UUID(category))
+            except ValueError:
+                queryset = queryset.none()
+
+        ordering = PRODUCT_ORDERINGS.get(params.get("ordering"), default_ordering)
+        return queryset.order_by(*ordering)
 
     def list(self, request, *args, **kwargs):
         if request.query_params.get("filter") != "expiring":

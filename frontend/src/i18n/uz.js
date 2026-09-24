@@ -150,6 +150,18 @@ export default {
     low: 'Kam qolgan',
     expiring: 'Muddat',
     none: 'Mahsulot topilmadi',
+    search: 'Nomi yoki shtrix-kodi...',
+    category: 'Kategoriya',
+    all_categories: 'Barcha kategoriyalar',
+    sort: 'Tartiblash',
+    sort_default: 'Tartib: odatiy',
+    sort_name: 'Nomi (A–Z)',
+    sort_stock_asc: 'Qoldiq: kamdan',
+    sort_stock_desc: "Qoldiq: ko'pdan",
+    sort_price_asc: 'Narx: arzondan',
+    sort_price_desc: 'Narx: qimmatdan',
+    reset: 'Tozalash',
+    restock: 'Kirim',
   },
 
   product_form: {
