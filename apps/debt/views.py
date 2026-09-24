@@ -1,6 +1,6 @@
 """Customer / debt-ledger endpoints (TZ v2 8.2)."""
 
-from django.db.models import Prefetch
+from django.db.models import Count, Prefetch, Q, Sum
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -38,14 +38,28 @@ class CustomerViewSet(viewsets.ModelViewSet):
 
         if self.action == "retrieve":
             queryset = queryset.prefetch_related(
-                Prefetch("entries", queryset=DebtEntry.objects.order_by("-created_at"))
+                Prefetch(
+                    "entries",
+                    queryset=DebtEntry.objects.select_related("created_by").order_by("-created_at"),
+                )
             )
 
-        search = self.request.query_params.get("q")
-        if search:
-            queryset = queryset.filter(full_name__icontains=search)
+        if self.request.query_params.get("filter") == "debtors":
+            queryset = queryset.filter(debt_balance__gt=0)
 
-        return queryset.order_by("-debt_balance")
+        search = self.request.query_params.get("q", "").strip()
+        if search:
+            queryset = queryset.filter(Q(full_name__icontains=search) | Q(phone__icontains=search))
+
+        return queryset.order_by("-debt_balance", "full_name")
+
+    @action(detail=False, methods=["get"])
+    def summary(self, request):
+        """What the shop is owed in total — the headline of the debt page."""
+        totals = Customer.objects.filter(
+            shop=request.user.shop, is_active=True, debt_balance__gt=0
+        ).aggregate(total_debt=Sum("debt_balance"), debtors=Count("id"))
+        return Response({"total_debt": totals["total_debt"] or 0, "debtors": totals["debtors"]})
 
     @action(detail=True, methods=["post"])
     def debt(self, request, pk=None):

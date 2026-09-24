@@ -19,9 +19,11 @@ from .services import (
     dashboard,
     debt_summary,
     period_bounds,
+    previous_period_bounds,
     sales_series,
     sales_stats,
     top_products,
+    totals_between,
     unsold_products,
     write_off_total,
 )
@@ -54,10 +56,16 @@ class ReportsView(APIView):
             period = "day"
         shop = request.user.shop
         start, end = period_bounds(period)
+        prev_start, prev_end = previous_period_bounds(period)
         return Response(
             {
                 "period": period,
                 "range": {"start": start.isoformat(), "end": end.isoformat()},
+                # The same stretch of the previous period, for "+12%" arrows.
+                "previous": {
+                    "range": {"start": prev_start.isoformat(), "end": prev_end.isoformat()},
+                    **totals_between(shop, prev_start, prev_end),
+                },
                 "series": sales_series(shop, period),
                 "stats": sales_stats(shop, period),
                 "today_profit": sales_stats(shop, "day")["profit"],

@@ -11,6 +11,11 @@ defineProps({
   value: { type: [Number, String], required: true },
   hint: { type: String, default: '' },
   tone: { type: String, default: 'default' }, // default | accent | warn | danger
+  // A plain count ("12 ta") instead of an amount in so'm.
+  unit: { type: String, default: null },
+  // Change vs the previous period in %, e.g. 12 or -5; null hides the chip.
+  delta: { type: Number, default: null },
+  deltaHint: { type: String, default: '' },
 })
 
 const TONES = {
@@ -50,8 +55,27 @@ const TONES = {
       <p class="font-mono text-[15px] font-bold leading-tight" :class="TONES[tone].value">
         {{ formatMoney(value) }}
         <span class="text-[10px] font-semibold text-[var(--color-ink-soft)]">
-          {{ t('common.som') }}
+          {{ unit ?? t('common.som') }}
         </span>
+      </p>
+      <p
+        v-if="delta !== null"
+        class="mt-0.5 flex items-center gap-1 text-[10px] leading-tight"
+        :title="deltaHint"
+      >
+        <span
+          class="rounded px-1 py-px font-mono font-bold"
+          :class="
+            delta > 0
+              ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
+              : delta < 0
+                ? 'bg-[var(--color-danger-soft)] text-[var(--color-danger)]'
+                : 'bg-[var(--color-paper)] text-[var(--color-ink-soft)]'
+          "
+        >
+          {{ delta > 0 ? '▲' : delta < 0 ? '▼' : '' }}{{ Math.abs(delta) }}%
+        </span>
+        <span class="truncate text-[var(--color-ink-soft)]">{{ deltaHint }}</span>
       </p>
       <p v-if="hint" class="text-[10px] leading-tight text-[var(--color-ink-soft)]">{{ hint }}</p>
     </div>

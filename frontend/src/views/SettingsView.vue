@@ -142,6 +142,7 @@ async function logout() {
               v-model.number="settings.expiry_warn_days"
               type="number"
               min="1"
+              max="365"
               class="w-full rounded-lg border border-[var(--color-line)] px-3 py-2.5"
             />
             <InfoHint class="mt-1">{{ t('settings.expiry_hint') }}</InfoHint>

@@ -12,6 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.common.limits import MAX_LINES
 from apps.common.permissions import IsOwner
 
 from .models import Batch, Category, Product
@@ -89,6 +90,17 @@ class ProductViewSet(viewsets.ModelViewSet):
             return quick_products(shop)
 
         params = self.request.query_params
+        ids = params.get("ids")
+        if ids:
+            # The sale screen re-reads the products of a cart restored from
+            # the browser, whose saved price/stock may be hours old. Archived
+            # ones are left out on purpose: they can't be sold any more.
+            try:
+                wanted = [uuid.UUID(part) for part in ids.split(",")[:MAX_LINES]]
+            except ValueError:
+                return queryset.none()
+            return queryset.filter(id__in=wanted, is_active=True).order_by("name")
+
         filter_ = params.get("filter")
         if filter_ == "low":
             # Emptiest first unless the page asks for another order.

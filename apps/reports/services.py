@@ -24,8 +24,38 @@ def _period_range(period: str, today: date) -> tuple[date, date]:
 
 
 def period_bounds(period: str) -> tuple[date, date]:
-    """First and last day (inclusive) a period covers, up to today."""
-    return _period_range(period, date.today())
+    """First and last day (inclusive) a period covers, up to today.
+
+    "Today" is the shop's local date (settings.TIME_ZONE), never the server
+    clock's: the container runs in UTC, and between 00:00 and 05:00 in
+    Tashkent ``date.today()`` would still be yesterday — while the
+    ``sold_at__date`` lookups below already cut days in local time."""
+    return _period_range(period, timezone.localdate())
+
+
+def previous_period_bounds(period: str, today: date | None = None) -> tuple[date, date]:
+    """The same stretch of the previous period, for a fair comparison: today
+    vs yesterday, Monday..today vs last Monday..same weekday, 1st..today vs
+    last month's 1st..same day (clamped to that month's length)."""
+    today = today or timezone.localdate()
+    if period == "week":
+        start = today - timedelta(days=today.weekday() + 7)
+        return start, today - timedelta(days=7)
+    if period == "month":
+        last_month_end = today.replace(day=1) - timedelta(days=1)
+        start = last_month_end.replace(day=1)
+        return start, last_month_end.replace(day=min(today.day, last_month_end.day))
+    yesterday = today - timedelta(days=1)
+    return yesterday, yesterday
+
+
+def totals_between(shop: Shop, start: date, end: date) -> dict:
+    """Sales count, revenue and profit over an arbitrary date range."""
+    return completed_sales(shop, start, end).aggregate(
+        count=Count("id"),
+        revenue=Coalesce(Sum("total"), 0),
+        profit=Coalesce(Sum(F("total") - F("cost_total")), 0),
+    )
 
 
 def completed_sales(shop: Shop, start: date, end: date) -> QuerySet[Sale]:
@@ -92,36 +122,17 @@ def sales_series(shop: Shop, period: str) -> dict:
 
 
 def sales_stats(shop: Shop, period: str = "day") -> dict:
-    today = date.today()
-    start, end = _period_range(period, today)
-
-    stats = Sale.objects.filter(
-        shop=shop,
-        status=Sale.Status.COMPLETED,
-        sold_at__date__gte=start,
-        sold_at__date__lte=end,
-    ).aggregate(
-        revenue=Coalesce(Sum("total"), 0),
-        cash=Coalesce(Sum("total", filter=Q(payment_type=Sale.PaymentType.CASH)), 0),
-        card=Coalesce(Sum("total", filter=Q(payment_type=Sale.PaymentType.CARD)), 0),
-        debt=Coalesce(Sum("total", filter=Q(payment_type=Sale.PaymentType.DEBT)), 0),
-        profit=Coalesce(Sum(F("total") - F("cost_total")), 0),
-    )
+    start, end = period_bounds(period)
+    stats = completed_sales(shop, start, end).aggregate(**_money_aggregates())
     stats["cash_in_register"] = stats["cash"] + stats["card"]
     return stats
 
 
 def top_products(shop: Shop, period: str, limit: int = 5) -> list[dict]:
-    today = date.today()
-    start, end = _period_range(period, today)
+    start, end = period_bounds(period)
     return list(
-        SaleItem.objects.filter(
-            sale__shop=shop,
-            sale__status=Sale.Status.COMPLETED,
-            sale__sold_at__date__gte=start,
-            sale__sold_at__date__lte=end,
-        )
-        .values("product__name", "product__unit")
+        SaleItem.objects.filter(sale__in=completed_sales(shop, start, end))
+        .values("product_id", "product__name", "product__unit")
         .annotate(qty_sold=Sum("qty"), revenue=Sum("line_total"))
         .order_by("-qty_sold")[:limit]
     )
@@ -140,8 +151,7 @@ def unsold_products(shop: Shop) -> QuerySet[Product]:
 
 
 def write_off_total(shop: Shop, period: str) -> int:
-    today = date.today()
-    start, end = _period_range(period, today)
+    start, end = period_bounds(period)
     return WriteOff.objects.filter(
         shop=shop, created_at__date__gte=start, created_at__date__lte=end
     ).aggregate(total=Coalesce(Sum("cost_total"), 0))["total"]
@@ -164,10 +174,13 @@ def debt_summary(shop: Shop, period: str) -> dict:
             customers=Count("customer", distinct=True),
         )
     )
-    # Payments are stored as negative ledger amounts.
+    # Payments are stored as negative ledger amounts. A cancelled credit sale
+    # also books a PAYMENT entry (linked to that sale) to reverse the debt —
+    # no money came in, so it must not count as a repayment.
     paid = DebtEntry.objects.filter(
         shop=shop,
         entry_type=DebtEntry.EntryType.PAYMENT,
+        sale__isnull=True,
         created_at__date__gte=start,
         created_at__date__lte=end,
     ).aggregate(total=Coalesce(Sum("amount"), 0))["total"]
@@ -189,9 +202,11 @@ def dashboard(shop: Shop) -> dict:
     warn_days = shop.get_settings().expiry_warn_days
     return {
         "today": sales_stats(shop, "day"),
-        "total_debt": Customer.objects.filter(shop=shop, is_active=True).aggregate(
-            total=Coalesce(Sum("debt_balance"), 0)
-        )["total"],
+        # Same rule as the debt page and the report: only what customers owe.
+        # A customer who overpaid (negative balance) must not shrink the total.
+        "total_debt": Customer.objects.filter(
+            shop=shop, is_active=True, debt_balance__gt=0
+        ).aggregate(total=Coalesce(Sum("debt_balance"), 0))["total"],
         "expiring_count": expiring_batches(shop, warn_days).count(),
         "low_stock_count": low_stock_products(shop).count(),
     }

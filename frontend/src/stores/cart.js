@@ -102,6 +102,43 @@ export const useCartStore = defineStore('cart', {
       this.save()
     },
 
+    // A cart restored from the browser carries the price and stock of when
+    // it was saved — possibly hours ago, on another shift. Re-read its
+    // products so the till shows today's numbers: archived products drop
+    // out, quantities above the current stock are capped. Lines added while
+    // the request was in flight are left alone. Returns true if anything
+    // in the cart changed.
+    async refresh() {
+      const ids = this.items.map((item) => item.product.id)
+      if (!ids.length) return false
+      const response = await api.get('/products/', {
+        params: { ids: ids.join(','), page_size: 100 },
+      })
+      const data = response.data.data
+      const fresh = new Map((data.results ?? data).map((product) => [product.id, product]))
+      const asked = new Set(ids)
+
+      let changed = false
+      const items = []
+      for (const item of this.items) {
+        if (!asked.has(item.product.id)) {
+          items.push(item)
+          continue
+        }
+        const product = fresh.get(item.product.id)
+        const qty = product ? roundQty(Math.min(item.qty, Number(product.stock ?? 0))) : 0
+        if (!product || qty <= 0) {
+          changed = true
+          continue
+        }
+        if (qty !== item.qty || product.price !== item.product.price) changed = true
+        items.push({ product, qty })
+      }
+      this.items = items
+      this.save()
+      return changed
+    },
+
     clear() {
       this.items = []
       this.clientId = uuid()

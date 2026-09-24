@@ -1,3 +1,4 @@
+from datetime import timedelta
 from decimal import Decimal
 
 from django.utils import timezone
@@ -8,13 +9,25 @@ from apps.shops.models import User
 
 from .exceptions import BarcodeConflict
 from .models import Batch, Category, Product, WriteOff
-from .services import batch_status, requires_whole_number
+from .services import FIFO_ORDER, batch_status, requires_whole_number
 
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ["id", "name"]
+
+    def validate_name(self, name: str) -> str:
+        # unique_together=("shop", "name") can't be checked by DRF here (shop
+        # isn't a serializer field), so a duplicate used to reach the
+        # database and come back as a 500.
+        name = name.strip()
+        if not name:
+            raise serializers.ValidationError("Nomini kiriting.")
+        shop = self.context["request"].user.shop
+        if Category.objects.filter(shop=shop, name__iexact=name).exists():
+            raise serializers.ValidationError("Bunday kategoriya allaqachon bor.")
+        return name
 
     def create(self, validated_data):
         validated_data["shop"] = self.context["request"].user.shop
@@ -62,7 +75,7 @@ class ProductSerializer(serializers.ModelSerializer):
         the real price is always resolved server-side at checkout."""
         if hasattr(product, "fifo_price"):  # annotated by with_price() on list screens
             return product.fifo_price
-        batch = product.batches.filter(qty_remaining__gt=0).order_by("received_at").first()
+        batch = product.batches.filter(qty_remaining__gt=0).order_by(*FIFO_ORDER).first()
         return batch.sale_price if batch else None
 
     ALLOWED_IMAGE_FORMATS = {"JPEG", "PNG", "WEBP"}
@@ -174,6 +187,13 @@ class BatchCreateSerializer(serializers.ModelSerializer):
         if product and qty is not None and requires_whole_number(product.unit, qty):
             raise serializers.ValidationError(
                 {"qty_initial": "Dona hisobidagi mahsulot uchun miqdor butun son bo'lishi kerak."}
+            )
+        # A future date would park the batch behind every later delivery in
+        # the FIFO queue (and show "received" before it arrived).
+        received_at = attrs.get("received_at")
+        if received_at and received_at > timezone.now() + timedelta(minutes=5):
+            raise serializers.ValidationError(
+                {"received_at": "Qabul qilingan sana kelajakda bo'lishi mumkin emas."}
             )
         # The auto-calculated sale price (cost + markup) must stay in range too.
         if product and "sale_price" not in attrs and "cost_price" in attrs:

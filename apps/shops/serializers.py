@@ -54,3 +54,9 @@ class ShopSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = ShopSettings
         fields = ["expiry_warn_days", "currency"]
+        # Every screen, receipt and export prints amounts in so'm; a writable
+        # currency would only let the stored code drift from what is shown.
+        read_only_fields = ["currency"]
+        # 0 would hide every batch until it has already expired; years
+        # ahead would flag the whole stock as "expiring".
+        extra_kwargs = {"expiry_warn_days": {"min_value": 1, "max_value": 365}}

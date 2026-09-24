@@ -267,6 +267,25 @@ class DebtSummaryTests(ReportExportTests):
 
         self.assertEqual(self.debt()["sold"], 0)
 
+    def test_cancelled_credit_sale_is_not_a_repayment(self):
+        # Cancelling books a reversing PAYMENT entry; no money came in.
+        product = self.make_product("Un", "100")
+        sale = self.sell_on_credit(product, "2", self.make_customer("Aziz"))
+        cancel_sale(sale, self.owner)
+
+        self.assertEqual(self.debt()["paid"], 0)
+
+    def test_dashboard_total_debt_ignores_overpaid_customers(self):
+        from apps.debt.services import add_payment
+
+        product = self.make_product("Un", "100")
+        self.sell_on_credit(product, "5", self.make_customer("Aziz"))  # owes 6000
+        add_payment(customer=self.make_customer("Vali"), user=self.owner, amount=1000)  # -1000
+
+        data = self.client.get("/api/dashboard/").json()["data"]
+
+        self.assertEqual(data["total_debt"], 6000)
+
     def test_xlsx_summary_carries_paid_and_outstanding(self):
         product = self.make_product("Un", "100")
         self.sell_on_credit(product, "5", self.make_customer("Aziz"))
@@ -284,3 +303,50 @@ class DebtSummaryTests(ReportExportTests):
         }
         self.assertEqual(summary["Qarzga (so'm)"], 6000)
         self.assertEqual(summary["Hozirgi jami qarz qoldig'i (so'm)"], 6000)
+
+
+class PreviousPeriodBoundsTests(TestCase):
+    """The comparison window is the same stretch of the previous period."""
+
+    def test_day_compares_with_yesterday(self):
+        from apps.reports.services import previous_period_bounds
+
+        today = date(2026, 9, 24)
+        self.assertEqual(previous_period_bounds("day", today), (date(2026, 9, 23),) * 2)
+
+    def test_week_compares_monday_to_same_weekday(self):
+        from apps.reports.services import previous_period_bounds
+
+        # 2026-09-24 is a Thursday: last week's Monday..Thursday.
+        self.assertEqual(
+            previous_period_bounds("week", date(2026, 9, 24)),
+            (date(2026, 9, 14), date(2026, 9, 17)),
+        )
+
+    def test_month_clamps_to_shorter_previous_month(self):
+        from apps.reports.services import previous_period_bounds
+
+        self.assertEqual(
+            previous_period_bounds("month", date(2026, 3, 31)),
+            (date(2026, 2, 1), date(2026, 2, 28)),
+        )
+        self.assertEqual(
+            previous_period_bounds("month", date(2026, 1, 15)),
+            (date(2025, 12, 1), date(2025, 12, 15)),
+        )
+
+
+class LocalDateTests(ReportExportTests):
+    """The shop's "today" is its own date (Asia/Tashkent), not the UTC server clock's."""
+
+    def test_period_bounds_follow_shop_timezone(self):
+        from datetime import datetime
+        from unittest import mock
+        from zoneinfo import ZoneInfo
+
+        from apps.reports.services import period_bounds
+
+        # 02:00 in Tashkent on 1 Jan is still 31 Dec in UTC.
+        moment = datetime(2030, 1, 1, 2, 0, tzinfo=ZoneInfo("Asia/Tashkent"))
+        with mock.patch("django.utils.timezone.now", return_value=moment):
+            self.assertEqual(period_bounds("day"), (date(2030, 1, 1),) * 2)

@@ -18,9 +18,14 @@ class CustomerSerializer(serializers.ModelSerializer):
 
 
 class DebtEntrySerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(
+        source="created_by.full_name", read_only=True, default=None
+    )
+
     class Meta:
         model = DebtEntry
-        fields = ["id", "amount", "entry_type", "note", "created_at"]
+        # `sale`: the receipt a debt came from, so the history can link to it.
+        fields = ["id", "amount", "entry_type", "note", "sale", "created_by_name", "created_at"]
 
 
 class CustomerDetailSerializer(CustomerSerializer):

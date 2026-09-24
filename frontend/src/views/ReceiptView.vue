@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import api from '@/api/client'
 import Icon from '@/components/Icon.vue'
 import { t } from '@/i18n'
+import { useConfirmStore } from '@/stores/confirm'
 import { useToastStore } from '@/stores/toast'
 import { apiError } from '@/utils/errors'
 import { formatDateTime, formatMoney } from '@/utils/format'
@@ -12,6 +13,7 @@ import { formatDateTime, formatMoney } from '@/utils/format'
 const props = defineProps({ id: String })
 const router = useRouter()
 const toast = useToastStore()
+const confirm = useConfirmStore()
 const sale = ref(null)
 
 async function load() {
@@ -25,7 +27,13 @@ onMounted(load)
 // will work. The error branch covers a rule that changed since the page loaded
 // (e.g. midnight passed).
 async function cancelSale() {
-  if (!confirm(t('receipt.confirm_cancel'))) return
+  const ok = await confirm.ask({
+    title: t('receipt.confirm_cancel'),
+    text: t('receipt.confirm_cancel_text'),
+    confirmLabel: t('receipt.cancel'),
+    danger: true,
+  })
+  if (!ok) return
   try {
     await api.post(`/sales/${props.id}/cancel/`)
     toast.success(t('receipt.cancelled_ok'))

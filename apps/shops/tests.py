@@ -109,6 +109,16 @@ class ShopWithoutSettingsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(ShopSettings.objects.get(shop=self.shop).expiry_warn_days, 3)
 
+    def test_settings_reject_out_of_range_window_and_currency_edits(self):
+        for days in (0, 366):
+            response = self.client.patch(
+                "/api/settings/", {"expiry_warn_days": days}, format="json"
+            )
+            self.assertEqual(response.status_code, 400)
+
+        self.client.patch("/api/settings/", {"currency": "USD"}, format="json")
+        self.assertEqual(ShopSettings.objects.get(shop=self.shop).currency, "UZS")
+
     def test_expiring_filter_works(self):
         self.assertEqual(self.client.get("/api/products/", {"filter": "expiring"}).status_code, 200)
 

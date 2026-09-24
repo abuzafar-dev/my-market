@@ -33,6 +33,7 @@ import {
   Package,
   Plus,
   Receipt,
+  RefreshCw,
   Scale,
   Search,
   Settings,
@@ -57,6 +58,8 @@ defineProps({
 const icons = {
   cart: ShoppingCart,
   ledger: Receipt,
+  receipt: Receipt,
+  refresh: RefreshCw,
   box: Package,
   chart: ChartColumn,
   gear: Settings,

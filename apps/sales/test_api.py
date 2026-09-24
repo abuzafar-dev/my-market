@@ -140,6 +140,54 @@ class CheckoutValidationTests(SaleApiTestCase):
         self.assertEqual(response.status_code, 401)
 
 
+class CheckoutRobustnessTests(SaleApiTestCase):
+    def test_a_retry_returns_the_sale_even_after_the_product_was_archived(self):
+        client_id = str(uuid4())
+        payload = {
+            "client_id": client_id,
+            "payment_type": "cash",
+            "items": [{"product_id": str(self.piece.id), "qty": "1"}],
+        }
+        first = self.api.post("/api/sales/", payload, format="json")
+        Product.objects.filter(pk=self.piece.pk).update(is_active=False)
+
+        retry = self.api.post("/api/sales/", payload, format="json")
+
+        self.assertEqual(retry.status_code, 201)
+        self.assertEqual(retry.json()["data"]["id"], first.json()["data"]["id"])
+        self.assertEqual(Sale.objects.count(), 1)
+
+    def test_the_same_product_on_two_lines_is_checked_as_one_quantity(self):
+        payload = {
+            "client_id": str(uuid4()),
+            "payment_type": "cash",
+            "items": [
+                {"product_id": str(self.piece.id), "qty": "6"},
+                {"product_id": str(self.piece.id), "qty": "6"},
+            ],
+        }
+        response = self.api.post("/api/sales/", payload, format="json")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error"]["code"], "insufficient_stock")
+        self.assertEqual(Batch.objects.get(product=self.piece).qty_remaining, Decimal("10"))
+
+    def test_an_archived_customer_cannot_take_new_debt(self):
+        customer = Customer.objects.create(shop=self.shop, full_name="Eski", is_active=False)
+
+        response = self.checkout(payment_type="debt", customer_id=str(customer.id))
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(Sale.objects.exists())
+
+    def test_an_archived_product_error_names_the_product(self):
+        Product.objects.filter(pk=self.piece.pk).update(is_active=False)
+
+        response = self.checkout()
+
+        self.assertEqual(response.json()["error"]["product_id"], str(self.piece.id))
+
+
 class SaleListFilterTests(SaleApiTestCase):
     def test_a_malformed_date_is_a_validation_error(self):
         response = self.api.get("/api/sales/?date=21.09.2026")

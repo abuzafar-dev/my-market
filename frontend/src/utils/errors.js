@@ -20,6 +20,9 @@ const EXACT = {
   "Rasm o'lchami juda katta.": 'errors.image_dims',
   'Narx juda katta.': 'errors.price_big',
   "Bu mahsulot sotilgan, o'chirib bo'lmaydi. Uni arxivlang.": 'errors.product_in_use',
+  'Bunday kategoriya allaqachon bor.': 'errors.category_exists',
+  'Nomini kiriting.': 'errors.name_required',
+  "Qabul qilingan sana kelajakda bo'lishi mumkin emas.": 'errors.future_date',
 }
 
 const PATTERNS = [

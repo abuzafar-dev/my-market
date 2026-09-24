@@ -78,11 +78,29 @@ function onKeyDown(event) {
   }
 }
 
-onMounted(async () => {
-  window.addEventListener('keydown', onKeyDown)
+// Re-read the cart's products and say so if a price, stock or archive state
+// moved under it. A failed refresh is not fatal: checkout re-checks anyway.
+async function refreshCart() {
+  try {
+    if (await cart.refresh()) toast.warn(t('sale.cart_refreshed'))
+  } catch {
+    // Offline — keep the saved cart as it is.
+  }
+}
+
+async function loadQuickProducts() {
   const response = await api.get('/products/', { params: { quick: true } })
   quickProducts.value = response.data.data.results ?? response.data.data
+}
+
+onMounted(async () => {
+  window.addEventListener('keydown', onKeyDown)
+  refreshCart()
+  await loadQuickProducts()
 })
+
+// Checkout errors that mean the cart no longer matches the shelf.
+const STALE_CART_ERRORS = new Set(['insufficient_stock', 'product_inactive', 'product_not_found'])
 
 onBeforeUnmount(() => window.removeEventListener('keydown', onKeyDown))
 
@@ -250,6 +268,12 @@ async function checkout() {
     router.push({ name: 'receipt', params: { id: sale.id } })
   } catch (err) {
     toast.error(apiError(err))
+    // Another till sold it, or the owner archived it: pull the real numbers
+    // so the cart and the quick buttons stop offering what isn't there.
+    if (STALE_CART_ERRORS.has(err?.response?.data?.error?.code)) {
+      await refreshCart()
+      loadQuickProducts().catch(() => {})
+    }
   } finally {
     checkingOut.value = false
   }

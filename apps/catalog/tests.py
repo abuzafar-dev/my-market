@@ -376,3 +376,52 @@ class ProductListFilterTests(CatalogTestCase):
         self.assertEqual(self.names(ordering="-price"), ["Non", "Suv"])
         self.assertEqual(self.names(ordering="price"), ["Suv", "Non"])
         self.assertEqual(self.names(ordering="drop table"), ["Non", "Suv"])  # falls back to name
+
+
+class CategoryAndBatchValidationTests(CatalogTestCase):
+    def setUp(self):
+        super().setUp()
+        from rest_framework.test import APIClient
+
+        self.api = APIClient()
+        self.api.force_authenticate(self.user)
+
+    def test_a_duplicate_category_is_a_validation_error_not_a_500(self):
+        response = self.api.post("/api/categories/", {"name": "  ichimliklar "}, format="json")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Category.objects.filter(shop=self.shop).count(), 1)
+
+    def test_a_batch_cannot_be_received_in_the_future(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        response = self.api.post(
+            "/api/batches/",
+            {
+                "product": str(self.product.id),
+                "qty_initial": "5",
+                "cost_price": 1000,
+                "received_at": (timezone.now() + timedelta(days=3)).isoformat(),
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("received_at", response.json()["error"]["fields"])
+
+    def test_products_can_be_reread_by_ids_leaving_out_archived_ones(self):
+        archived = Product.objects.create(
+            shop=self.shop, name="Eski", min_stock=Decimal("1"), is_active=False
+        )
+        self.make_batch()
+
+        response = self.api.get(
+            "/api/products/", {"ids": f"{self.product.id},{archived.id}", "page_size": 100}
+        )
+
+        results = response.json()["data"]["results"]
+        self.assertEqual([p["id"] for p in results], [str(self.product.id)])
+        self.assertEqual(results[0]["stock"], "10.000")
+        self.assertEqual(self.api.get("/api/products/", {"ids": "junk"}).status_code, 200)

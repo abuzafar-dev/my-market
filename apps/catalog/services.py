@@ -49,8 +49,11 @@ def low_stock_products(shop: Shop) -> QuerySet[Product]:
 
 
 def expiring_batches(shop: Shop, warn_days: int) -> QuerySet[Batch]:
-    """Batches expired or expiring within the shop's warning window (TZ v2 3.6 / 7.6)."""
-    warn_date = date.today() + timedelta(days=warn_days)
+    """Batches expired or expiring within the shop's warning window (TZ v2 3.6 / 7.6).
+
+    Dates are the shop's local ones (``timezone.localdate``), not the UTC
+    server clock's — otherwise a batch flips to "expired" five hours late."""
+    warn_date = timezone.localdate() + timedelta(days=warn_days)
     return (
         Batch.objects.filter(
             shop=shop, qty_remaining__gt=0, expires_at__isnull=False, expires_at__lte=warn_date
@@ -61,7 +64,13 @@ def expiring_batches(shop: Shop, warn_days: int) -> QuerySet[Batch]:
 
 
 def batch_status(expires_at: date) -> str:
-    return "expired" if expires_at < date.today() else "warning"
+    return "expired" if expires_at < timezone.localdate() else "warning"
+
+
+# The order batches are sold in (oldest first). Ties on received_at — two
+# batches entered in the same second — are broken the same way everywhere, so
+# the preview price always belongs to the batch checkout will actually take.
+FIFO_ORDER = ("received_at", "created_at", "id")
 
 
 def with_price(queryset: QuerySet[Product]) -> QuerySet[Product]:
@@ -72,7 +81,7 @@ def with_price(queryset: QuerySet[Product]) -> QuerySet[Product]:
     screens show 20+ products at a time)."""
     head_batch = (
         Batch.objects.filter(product=OuterRef("pk"), qty_remaining__gt=0)
-        .order_by("received_at")
+        .order_by(*FIFO_ORDER)
         .values("sale_price")[:1]
     )
     return queryset.annotate(fifo_price=Subquery(head_batch))

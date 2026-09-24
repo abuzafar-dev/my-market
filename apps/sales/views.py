@@ -55,6 +55,17 @@ class SaleViewSet(viewsets.ModelViewSet):
         data = serializer.validated_data
         shop = request.user.shop
 
+        # A retry of a checkout that already went through (the response was
+        # lost on a flaky connection) must get that sale back — even if a
+        # product was archived or sold out in the meantime, which the checks
+        # below would otherwise report as a fresh error (TZ v2 6.5).
+        existing = Sale.objects.filter(shop=shop, client_id=data["client_id"]).first()
+        if existing:
+            return Response(
+                SaleReadSerializer(existing, context=self.get_serializer_context()).data,
+                status=status.HTTP_201_CREATED,
+            )
+
         product_ids = [item["product_id"] for item in data["items"]]
         products = {p.id: p for p in Product.objects.filter(shop=shop, id__in=product_ids)}
         missing = set(product_ids) - set(products)
@@ -75,6 +86,7 @@ class SaleViewSet(viewsets.ModelViewSet):
                         "error": {
                             "code": "product_inactive",
                             "message": f"{product.name}: arxivlangan mahsulotni sotib bo'lmaydi.",
+                            "product_id": str(product.id),
                         },
                     },
                     status=status.HTTP_400_BAD_REQUEST,
@@ -89,6 +101,7 @@ class SaleViewSet(viewsets.ModelViewSet):
                         "error": {
                             "code": "invalid_quantity",
                             "message": f"{product.name}: dona hisobida faqat butun son bo'lishi kerak.",
+                            "product_id": str(product.id),
                         },
                     },
                     status=status.HTTP_400_BAD_REQUEST,
@@ -98,7 +111,10 @@ class SaleViewSet(viewsets.ModelViewSet):
 
         customer = None
         if data.get("customer_id"):
-            customer = get_object_or_404(Customer, shop=shop, id=data["customer_id"])
+            # An archived customer is hidden everywhere — no new debt on them.
+            customer = get_object_or_404(
+                Customer, shop=shop, id=data["customer_id"], is_active=True
+            )
 
         try:
             sale = create_sale(

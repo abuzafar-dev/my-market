@@ -9,6 +9,7 @@ from django.db.models import F
 from django.utils import timezone
 
 from apps.catalog.models import Batch, Product
+from apps.catalog.services import FIFO_ORDER
 from apps.debt.models import Customer, DebtEntry
 from apps.shops.models import Shop, User
 
@@ -30,12 +31,28 @@ class CartLine:
     qty: Decimal
 
 
+def merge_cart(cart: list[CartLine]) -> list[CartLine]:
+    """One line per product, in a fixed (product id) order.
+
+    Merging makes the stock check see the whole quantity of a product that
+    was added twice. The fixed order makes every checkout lock batch rows in
+    the same sequence, so two tills selling the same two products in
+    opposite order can't deadlock each other."""
+    merged: dict = {}
+    for line in cart:
+        if line.product.pk in merged:
+            merged[line.product.pk].qty += line.qty
+        else:
+            merged[line.product.pk] = CartLine(product=line.product, qty=line.qty)
+    return [merged[pk] for pk in sorted(merged, key=str)]
+
+
 def _consume_fifo(product: Product, qty_needed: Decimal) -> list[SaleItem]:
     """Reduce the oldest batches first, splitting across batches as needed."""
     batches = list(
         Batch.objects.select_for_update()
         .filter(product=product, qty_remaining__gt=0)
-        .order_by("received_at")
+        .order_by(*FIFO_ORDER)
     )
 
     available = sum((batch.qty_remaining for batch in batches), Decimal("0"))
@@ -90,7 +107,7 @@ def create_sale(
     try:
         with transaction.atomic():
             items: list[SaleItem] = []
-            for line in cart:
+            for line in merge_cart(cart):
                 items += _consume_fifo(line.product, line.qty)
 
             total = sum(item.line_total for item in items)

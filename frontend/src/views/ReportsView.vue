@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import api from '@/api/client'
 import Icon from '@/components/Icon.vue'
@@ -14,6 +15,8 @@ import { apiError } from '@/utils/errors'
 import { formatMoney } from '@/utils/format'
 
 const toast = useToastStore()
+const route = useRoute()
+const router = useRouter()
 
 const periods = [
   ['day', 'reports.day', 'clock'],
@@ -21,20 +24,41 @@ const periods = [
   ['month', 'reports.month', 'calendar'],
 ]
 
-const period = ref('day')
+// The period lives in the URL, so a reload (or a bookmark) keeps the tab.
+const period = computed({
+  get: () => (['day', 'week', 'month'].includes(route.query.period) ? route.query.period : 'day'),
+  set: (value) => {
+    router.replace({ query: { ...route.query, period: value === 'day' ? undefined : value } })
+  },
+})
 const report = ref(null)
+const refreshing = ref(false)
 
-async function load() {
-  report.value = null
+// A period switch shows the skeleton; a refresh keeps the figures on screen
+// and only spins the button.
+async function load({ soft = false } = {}) {
+  if (soft) refreshing.value = true
+  else report.value = null
   try {
-    const response = await api.get('/reports/', { params: { period: period.value } })
-    report.value = response.data.data
+    const requested = period.value
+    const response = await api.get('/reports/', { params: { period: requested } })
+    if (requested === period.value) report.value = response.data.data
   } catch (err) {
     toast.error(apiError(err))
+  } finally {
+    refreshing.value = false
   }
 }
 onMounted(load)
-watch(period, load)
+watch(period, () => load())
+
+// "+12%" against the same stretch of the previous period; nothing to compare
+// with when that period had no sales.
+function change(current, previous) {
+  if (!previous) return null
+  return Math.round(((current - previous) / Math.abs(previous)) * 100)
+}
+const compareHint = computed(() => t(`reports.vs.${period.value}`))
 
 const dayMonth = (date) =>
   `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}`
@@ -53,12 +77,15 @@ const rangeLabel = computed(() => {
 const statTiles = computed(() => {
   const data = report.value
   if (!data) return []
+  const prev = data.previous
+  const count = data.stats.count ?? 0
   const tiles = [
     {
       icon: 'cart',
       label: t('reports.revenue'),
       hint: t('reports.revenue_hint'),
       value: data.stats.revenue,
+      delta: change(data.stats.revenue, prev?.revenue),
     },
     {
       icon: 'cash',
@@ -72,6 +99,21 @@ const statTiles = computed(() => {
       hint: t('reports.profit_hint'),
       value: data.stats.profit,
       tone: 'accent',
+      delta: change(data.stats.profit, prev?.profit),
+    },
+    {
+      icon: 'receipt',
+      label: t('reports.sales_n'),
+      hint: t('reports.sales_n_hint'),
+      value: count,
+      unit: t('reports.pcs'),
+      delta: change(count, prev?.count),
+    },
+    {
+      icon: 'tag',
+      label: t('reports.avg_check'),
+      hint: t('reports.avg_check_hint'),
+      value: count ? Math.round(data.stats.revenue / count) : 0,
     },
   ]
   if (period.value !== 'day') {
@@ -197,6 +239,7 @@ const stockLists = computed(() => [
     title: t('reports.low_title'),
     hint: t('reports.low_hint'),
     run: () => download('low', '/reports/low-stock/export/', {}, 'kam_qolgan_tovarlar.xlsx'),
+    view: { name: 'products', query: { filter: 'low' } },
   },
   {
     id: 'unsold',
@@ -210,7 +253,7 @@ const stockLists = computed(() => [
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-3xl px-4 py-5 md:px-10 md:py-8">
+  <div class="mx-auto w-full max-w-7xl px-4 py-5 md:px-8 md:py-8">
     <PageTitle icon="chart" :title="t('reports.title')" :subtitle="t('reports.subtitle')">
       <span
         v-if="report"
@@ -219,11 +262,21 @@ const stockLists = computed(() => [
         <Icon name="calendar" :size="12" />
         {{ rangeLabel }}
       </span>
+      <button
+        type="button"
+        :disabled="!report || refreshing"
+        :aria-label="t('reports.refresh')"
+        :title="t('reports.refresh')"
+        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--color-ink-soft)] ring-1 ring-inset ring-[var(--color-line)] transition hover:bg-[var(--color-paper)] disabled:opacity-50"
+        @click="load({ soft: true })"
+      >
+        <Icon name="refresh" :size="14" :class="{ 'animate-spin': refreshing }" />
+      </button>
     </PageTitle>
 
     <!-- Period switch: one segmented control -->
     <div
-      class="mb-4 grid grid-cols-3 gap-1 rounded-xl bg-[var(--color-paper)] p-1 ring-1 ring-inset ring-[var(--color-line)]"
+      class="mb-4 grid grid-cols-3 gap-1 rounded-xl bg-[var(--color-paper)] p-1 ring-1 ring-inset ring-[var(--color-line)] md:max-w-md"
       role="tablist"
       :aria-label="t('reports.tabs_hint')"
     >
@@ -247,18 +300,24 @@ const stockLists = computed(() => [
     </div>
 
     <div v-if="!report" class="space-y-3">
-      <div class="grid grid-cols-2 gap-2.5">
+      <div class="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-6">
         <div
-          v-for="i in 4"
+          v-for="i in 6"
           :key="i"
-          class="h-16 animate-pulse rounded-xl bg-[var(--color-line)]/40"
+          class="h-20 animate-pulse rounded-xl bg-[var(--color-line)]/40"
         />
       </div>
-      <div class="h-64 animate-pulse rounded-2xl bg-[var(--color-line)]/40" />
+      <div class="grid gap-3 lg:grid-cols-2">
+        <div class="h-80 animate-pulse rounded-2xl bg-[var(--color-line)]/40" />
+        <div class="h-80 animate-pulse rounded-2xl bg-[var(--color-line)]/40" />
+      </div>
     </div>
 
-    <div v-else class="space-y-3">
-      <div class="grid grid-cols-2 gap-2.5">
+    <div v-else class="space-y-3" :class="{ 'opacity-60 transition-opacity': refreshing }">
+      <div
+        class="grid grid-cols-2 gap-2.5 md:grid-cols-3"
+        :class="statTiles.length === 6 ? 'xl:grid-cols-6' : 'xl:grid-cols-5'"
+      >
         <StatTile
           v-for="tile in statTiles"
           :key="tile.label"
@@ -267,311 +326,342 @@ const stockLists = computed(() => [
           :value="tile.value"
           :hint="tile.hint"
           :tone="tile.tone"
+          :unit="tile.unit ?? null"
+          :delta="tile.delta ?? null"
+          :delta-hint="compareHint"
         />
       </div>
 
-      <!-- Credit: how sales were paid, what was sold on credit, who owes -->
-      <SectionCard
-        icon="ledger"
-        :title="t('reports.debt_title')"
-        :subtitle="t('reports.debt_subtitle')"
-      >
-        <p
-          class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]"
-        >
-          {{ t('reports.pay_split') }}
-        </p>
-        <div class="flex h-2.5 overflow-hidden rounded-full bg-[var(--color-paper)]">
-          <span
-            v-for="part in split"
-            :key="part.key"
-            class="split-seg h-full"
-            :class="part.color"
-            :style="{ width: splitHasData ? `${part.pct}%` : '0%' }"
-          />
-        </div>
-        <dl class="mt-2 grid grid-cols-3 gap-2">
-          <div v-for="part in split" :key="part.key" class="min-w-0">
-            <dt class="flex items-center gap-1.5 text-[11px] text-[var(--color-ink-soft)]">
-              <span class="h-2 w-2 shrink-0 rounded-full" :class="part.color" />
-              <span class="truncate">{{ part.label }}</span>
-              <span class="font-mono font-bold">{{ part.pct }}%</span>
-            </dt>
-            <dd class="truncate font-mono text-sm font-bold">{{ formatMoney(part.value) }}</dd>
-          </div>
-        </dl>
-
-        <div class="mt-3 grid grid-cols-2 gap-2.5">
-          <StatTile
-            icon="ledger"
-            tone="warn"
-            :label="t('reports.debt_sold')"
-            :value="debt.sold"
-            :hint="
-              t('reports.debt_sold_hint', {
-                n: debt.sold_count,
-                pct: report.stats.revenue
-                  ? Math.round((debt.sold / report.stats.revenue) * 100)
-                  : 0,
-              })
-            "
-          />
-          <StatTile
-            icon="cash"
-            tone="accent"
-            :label="t('reports.debt_paid')"
-            :value="debt.paid"
-            :hint="t('reports.debt_paid_hint')"
-          />
-          <div class="col-span-2">
-            <StatTile
-              icon="wallet"
-              :tone="debt.outstanding > 0 ? 'danger' : 'default'"
-              :label="t('reports.debt_outstanding')"
-              :value="debt.outstanding"
-              :hint="t('reports.debt_outstanding_hint', { n: debt.debtors })"
-            />
-          </div>
-        </div>
-      </SectionCard>
-
-      <!-- Sales per day / per hour -->
-      <SectionCard
-        icon="calendar"
-        :title="isHourly ? t('reports.series_hours') : t('reports.series_days')"
-        :subtitle="isHourly ? t('reports.series_hours_hint') : t('reports.series_days_hint')"
-      >
-        <div
-          v-if="isHourly && seriesEmpty"
-          class="flex flex-col items-center gap-1.5 py-6 text-center"
-        >
-          <span
-            class="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-paper)] text-[var(--color-ink-soft)]"
+      <!-- Wide screens: the long per-day / per-hour list on the left, the
+           shorter cards stacked on the right. Phones: one column. -->
+      <div class="grid items-start gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+        <div class="space-y-3">
+          <!-- Sales per day / per hour -->
+          <SectionCard
+            icon="calendar"
+            :title="isHourly ? t('reports.series_hours') : t('reports.series_days')"
+            :subtitle="isHourly ? t('reports.series_hours_hint') : t('reports.series_days_hint')"
           >
-            <Icon name="cart" :size="18" />
-          </span>
-          <p class="text-sm font-semibold">{{ t('reports.series_empty') }}</p>
+            <div
+              v-if="isHourly && seriesEmpty"
+              class="flex flex-col items-center gap-1.5 py-6 text-center"
+            >
+              <span
+                class="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-paper)] text-[var(--color-ink-soft)]"
+              >
+                <Icon name="cart" :size="18" />
+              </span>
+              <p class="text-sm font-semibold">{{ t('reports.series_empty') }}</p>
+            </div>
+
+            <template v-else>
+              <ul class="divide-y divide-[var(--color-line)]">
+                <li v-for="row in seriesRows" :key="row.key" class="flex items-center gap-3 py-2">
+                  <span class="w-14 shrink-0 leading-tight">
+                    <span class="flex items-center gap-1 font-mono text-sm font-bold">
+                      {{ row.title }}
+                      <Icon
+                        v-if="row.key === bestKey"
+                        name="trophy"
+                        :size="13"
+                        class="text-amber-500"
+                        :title="isHourly ? t('reports.best_hour') : t('reports.best_day')"
+                      />
+                    </span>
+                    <span
+                      class="text-[11px]"
+                      :class="
+                        row.isToday
+                          ? 'font-bold text-[var(--color-accent)]'
+                          : 'text-[var(--color-ink-soft)]'
+                      "
+                    >
+                      {{ row.isToday ? t('reports.today') : row.sub }}
+                    </span>
+                  </span>
+
+                  <span class="min-w-0 flex-1">
+                    <span class="block h-1.5 overflow-hidden rounded-full bg-[var(--color-paper)]">
+                      <span
+                        class="bar block h-full rounded-full"
+                        :class="row.key === bestKey ? 'bg-[var(--color-accent)]' : 'bg-teal-300'"
+                        :style="{ width: `${(row.revenue / seriesMax) * 100}%` }"
+                      />
+                    </span>
+                    <span
+                      class="mt-1 flex items-center gap-2.5 text-[10px] text-[var(--color-ink-soft)]"
+                    >
+                      <template v-if="row.count">
+                        <span
+                          class="flex items-center gap-0.5"
+                          :title="t('reports.sales_count', { n: row.count })"
+                        >
+                          <Icon name="cart" :size="10" />{{ row.count }}
+                        </span>
+                        <span
+                          class="flex items-center gap-0.5 text-[var(--color-accent)]"
+                          :title="t('reports.profit_line', { amount: formatMoney(row.profit) })"
+                        >
+                          <Icon name="trend" :size="10" />{{ formatMoney(row.profit) }}
+                        </span>
+                      </template>
+                      <template v-else>{{ t('reports.no_sale_day') }}</template>
+                    </span>
+                  </span>
+
+                  <span
+                    class="w-24 shrink-0 text-right font-mono text-sm font-bold"
+                    :class="{ 'font-normal text-[var(--color-ink-soft)]': !row.revenue }"
+                  >
+                    {{ row.revenue ? formatMoney(row.revenue) : '—' }}
+                  </span>
+                </li>
+              </ul>
+
+              <div
+                class="mt-1 flex items-center justify-between rounded-lg bg-[var(--color-accent-soft)] px-3 py-2 text-sm font-bold text-[var(--color-accent)]"
+              >
+                <span class="flex items-center gap-1.5"
+                  ><Icon name="wallet" :size="15" />{{ t('reports.period_total') }}</span
+                >
+                <span class="font-mono"
+                  >{{ formatMoney(report.stats.revenue) }} {{ t('common.som') }}</span
+                >
+              </div>
+            </template>
+          </SectionCard>
         </div>
 
-        <template v-else>
-          <ul class="divide-y divide-[var(--color-line)]">
-            <li v-for="row in seriesRows" :key="row.key" class="flex items-center gap-3 py-2">
-              <span class="w-14 shrink-0 leading-tight">
-                <span class="flex items-center gap-1 font-mono text-sm font-bold">
-                  {{ row.title }}
-                  <Icon
-                    v-if="row.key === bestKey"
-                    name="trophy"
-                    :size="13"
-                    class="text-amber-500"
-                    :title="isHourly ? t('reports.best_hour') : t('reports.best_day')"
-                  />
-                </span>
+        <div class="space-y-3">
+          <!-- Credit: how sales were paid, what was sold on credit, who owes -->
+          <SectionCard
+            icon="ledger"
+            :title="t('reports.debt_title')"
+            :subtitle="t('reports.debt_subtitle')"
+          >
+            <p
+              class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-ink-soft)]"
+            >
+              {{ t('reports.pay_split') }}
+            </p>
+            <div class="flex h-2.5 overflow-hidden rounded-full bg-[var(--color-paper)]">
+              <span
+                v-for="part in split"
+                :key="part.key"
+                class="split-seg h-full"
+                :class="part.color"
+                :style="{ width: splitHasData ? `${part.pct}%` : '0%' }"
+              />
+            </div>
+            <dl class="mt-2 grid grid-cols-3 gap-2">
+              <div v-for="part in split" :key="part.key" class="min-w-0">
+                <dt class="flex items-center gap-1.5 text-[11px] text-[var(--color-ink-soft)]">
+                  <span class="h-2 w-2 shrink-0 rounded-full" :class="part.color" />
+                  <span class="truncate">{{ part.label }}</span>
+                  <span class="font-mono font-bold">{{ part.pct }}%</span>
+                </dt>
+                <dd class="truncate font-mono text-sm font-bold">{{ formatMoney(part.value) }}</dd>
+              </div>
+            </dl>
+
+            <div class="mt-3 grid grid-cols-2 gap-2.5">
+              <StatTile
+                icon="ledger"
+                tone="warn"
+                :label="t('reports.debt_sold')"
+                :value="debt.sold"
+                :hint="
+                  t('reports.debt_sold_hint', {
+                    n: debt.sold_count,
+                    pct: report.stats.revenue
+                      ? Math.round((debt.sold / report.stats.revenue) * 100)
+                      : 0,
+                  })
+                "
+              />
+              <StatTile
+                icon="cash"
+                tone="accent"
+                :label="t('reports.debt_paid')"
+                :value="debt.paid"
+                :hint="t('reports.debt_paid_hint')"
+              />
+              <RouterLink
+                :to="{ name: 'customers', query: { filter: 'debtors' } }"
+                class="col-span-2 block rounded-xl transition hover:opacity-80"
+                :title="t('reports.see_debtors')"
+              >
+                <StatTile
+                  icon="wallet"
+                  :tone="debt.outstanding > 0 ? 'danger' : 'default'"
+                  :label="t('reports.debt_outstanding')"
+                  :value="debt.outstanding"
+                  :hint="t('reports.debt_outstanding_hint', { n: debt.debtors })"
+                />
+              </RouterLink>
+            </div>
+          </SectionCard>
+
+          <!-- Best sellers: a ranked list with bars -->
+          <SectionCard icon="trophy" :title="t('reports.top')" :subtitle="t('reports.top_hint')">
+            <ol v-if="topProducts.length" class="space-y-2.5">
+              <li v-for="(product, index) in topProducts" :key="product.product__name">
+                <div class="mb-1 flex items-center gap-2 text-sm">
+                  <span
+                    class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-paper)] font-mono text-[10px] font-bold text-[var(--color-ink-soft)]"
+                  >
+                    {{ index + 1 }}
+                  </span>
+                  <RouterLink
+                    v-if="product.product_id"
+                    :to="{ name: 'product-edit', params: { id: product.product_id } }"
+                    class="min-w-0 flex-1 truncate font-semibold hover:text-[var(--color-accent)] hover:underline"
+                  >
+                    {{ product.product__name }}
+                  </RouterLink>
+                  <span v-else class="min-w-0 flex-1 truncate font-semibold">
+                    {{ product.product__name }}
+                  </span>
+                  <span class="font-mono text-sm font-bold">{{ Number(product.qty_sold) }}</span>
+                  <UnitBadge :unit="product.product__unit" />
+                </div>
+                <div class="flex items-center gap-2 pl-7">
+                  <span class="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--color-paper)]">
+                    <span
+                      class="bar block h-full rounded-full bg-[var(--color-accent)]"
+                      :style="{ width: `${(Number(product.qty_sold) / topMax) * 100}%` }"
+                    />
+                  </span>
+                  <span class="font-mono text-[10px] text-[var(--color-ink-soft)]">
+                    {{ formatMoney(product.revenue) }}
+                  </span>
+                </div>
+              </li>
+            </ol>
+            <div v-else class="flex flex-col items-center gap-1.5 py-6 text-center">
+              <span
+                class="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-paper)] text-[var(--color-ink-soft)]"
+              >
+                <Icon name="cart" :size="18" />
+              </span>
+              <p class="text-sm font-semibold">{{ t('reports.no_sales') }}</p>
+              <p class="text-xs text-[var(--color-ink-soft)]">{{ t('reports.no_sales_hint') }}</p>
+            </div>
+          </SectionCard>
+
+          <StatTile
+            icon="warning"
+            :tone="report.write_offs_total > 0 ? 'danger' : 'default'"
+            :label="t('reports.losses')"
+            :value="report.write_offs_total"
+            :hint="t('reports.losses_hint')"
+          />
+
+          <!-- Downloads -->
+          <SectionCard icon="download" :title="t('reports.dl_title')">
+            <template #aside>
+              <span
+                class="shrink-0 rounded-full bg-[var(--color-paper)] px-2 py-1 text-[10px] font-semibold text-[var(--color-ink-soft)] ring-1 ring-inset ring-[var(--color-line)]"
+              >
+                {{
+                  t('reports.dl_period', {
+                    period: t(`reports.period_name.${period}`),
+                    range: rangeLabel,
+                  })
+                }}
+              </span>
+            </template>
+
+            <div class="grid grid-cols-2 gap-2">
+              <button
+                v-for="file in fileButtons"
+                :key="file.ext"
+                type="button"
+                :disabled="busy !== null"
+                class="flex items-center gap-2.5 rounded-xl p-3 text-left transition active:scale-[0.98] disabled:opacity-60"
+                :class="
+                  file.primary
+                    ? 'bg-[var(--color-accent)] text-white'
+                    : 'border border-[var(--color-line)] bg-[var(--color-surface)]'
+                "
+                @click="downloadReport(file.ext)"
+              >
                 <span
-                  class="text-[11px]"
+                  class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
                   :class="
-                    row.isToday
-                      ? 'font-bold text-[var(--color-accent)]'
-                      : 'text-[var(--color-ink-soft)]'
+                    file.primary
+                      ? 'bg-white/20'
+                      : 'bg-[var(--color-paper)] text-[var(--color-ink-soft)]'
                   "
                 >
-                  {{ row.isToday ? t('reports.today') : row.sub }}
+                  <Icon :name="busy === file.ext ? 'clock' : file.icon" :size="18" />
                 </span>
-              </span>
-
-              <span class="min-w-0 flex-1">
-                <span class="block h-1.5 overflow-hidden rounded-full bg-[var(--color-paper)]">
+                <span class="min-w-0 leading-tight">
+                  <span class="block text-sm font-bold">
+                    {{ busy === file.ext ? t('reports.dl_preparing') : file.title }}
+                  </span>
                   <span
-                    class="bar block h-full rounded-full"
-                    :class="row.key === bestKey ? 'bg-[var(--color-accent)]' : 'bg-teal-300'"
-                    :style="{ width: `${(row.revenue / seriesMax) * 100}%` }"
-                  />
+                    class="block truncate text-[11px]"
+                    :class="file.primary ? 'text-white/80' : 'text-[var(--color-ink-soft)]'"
+                  >
+                    {{ file.sub }}
+                  </span>
                 </span>
-                <span
-                  class="mt-1 flex items-center gap-2.5 text-[10px] text-[var(--color-ink-soft)]"
+              </button>
+            </div>
+
+            <div class="mt-2">
+              <InfoHint :label="t('reports.dl_steps_title')">
+                <p>{{ t('reports.dl_excel_hint') }}</p>
+                <p>{{ t('reports.dl_step1') }}</p>
+                <p>{{ t('reports.dl_step2') }}</p>
+                <p>{{ t('reports.dl_step3') }}</p>
+                <p>{{ t('reports.dl_where') }}</p>
+              </InfoHint>
+            </div>
+          </SectionCard>
+
+          <SectionCard icon="box" :title="t('reports.stock_lists')">
+            <div class="divide-y divide-[var(--color-line)]">
+              <div v-for="item in stockLists" :key="item.id" class="flex items-center gap-2">
+                <button
+                  type="button"
+                  :disabled="busy !== null"
+                  class="flex min-w-0 flex-1 items-center gap-2.5 py-2 text-left transition active:opacity-70 disabled:opacity-60"
+                  @click="item.run"
                 >
-                  <template v-if="row.count">
-                    <span
-                      class="flex items-center gap-0.5"
-                      :title="t('reports.sales_count', { n: row.count })"
-                    >
-                      <Icon name="cart" :size="10" />{{ row.count }}
+                  <span
+                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+                    :class="item.tone"
+                  >
+                    <Icon :name="item.icon" :size="16" />
+                  </span>
+                  <span class="min-w-0 flex-1 leading-tight">
+                    <span class="block truncate text-sm font-semibold">
+                      {{ busy === item.id ? t('reports.dl_preparing') : item.title }}
                     </span>
-                    <span
-                      class="flex items-center gap-0.5 text-[var(--color-accent)]"
-                      :title="t('reports.profit_line', { amount: formatMoney(row.profit) })"
-                    >
-                      <Icon name="trend" :size="10" />{{ formatMoney(row.profit) }}
-                    </span>
-                  </template>
-                  <template v-else>{{ t('reports.no_sale_day') }}</template>
-                </span>
-              </span>
-
-              <span
-                class="w-24 shrink-0 text-right font-mono text-sm font-bold"
-                :class="{ 'font-normal text-[var(--color-ink-soft)]': !row.revenue }"
-              >
-                {{ row.revenue ? formatMoney(row.revenue) : '—' }}
-              </span>
-            </li>
-          </ul>
-
-          <div
-            class="mt-1 flex items-center justify-between rounded-lg bg-[var(--color-accent-soft)] px-3 py-2 text-sm font-bold text-[var(--color-accent)]"
-          >
-            <span class="flex items-center gap-1.5"
-              ><Icon name="wallet" :size="15" />{{ t('reports.period_total') }}</span
-            >
-            <span class="font-mono"
-              >{{ formatMoney(report.stats.revenue) }} {{ t('common.som') }}</span
-            >
-          </div>
-        </template>
-      </SectionCard>
-
-      <!-- Best sellers: a ranked list with bars -->
-      <SectionCard icon="trophy" :title="t('reports.top')" :subtitle="t('reports.top_hint')">
-        <ol v-if="topProducts.length" class="space-y-2.5">
-          <li v-for="(product, index) in topProducts" :key="product.product__name">
-            <div class="mb-1 flex items-center gap-2 text-sm">
-              <span
-                class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-paper)] font-mono text-[10px] font-bold text-[var(--color-ink-soft)]"
-              >
-                {{ index + 1 }}
-              </span>
-              <span class="min-w-0 flex-1 truncate font-semibold">{{ product.product__name }}</span>
-              <span class="font-mono text-sm font-bold">{{ Number(product.qty_sold) }}</span>
-              <UnitBadge :unit="product.product__unit" />
+                    <span class="block truncate text-[11px] text-[var(--color-ink-soft)]">{{
+                      item.hint
+                    }}</span>
+                  </span>
+                  <span
+                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-ink)] text-white"
+                  >
+                    <Icon name="download" :size="14" />
+                  </span>
+                </button>
+                <RouterLink
+                  v-if="item.view"
+                  :to="item.view"
+                  class="shrink-0 rounded-full px-2.5 py-1.5 text-xs font-semibold text-[var(--color-accent)] ring-1 ring-inset ring-[var(--color-accent)]/40 transition hover:bg-[var(--color-accent-soft)]"
+                >
+                  {{ t('reports.view') }}
+                </RouterLink>
+              </div>
             </div>
-            <div class="flex items-center gap-2 pl-7">
-              <span class="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--color-paper)]">
-                <span
-                  class="bar block h-full rounded-full bg-[var(--color-accent)]"
-                  :style="{ width: `${(Number(product.qty_sold) / topMax) * 100}%` }"
-                />
-              </span>
-              <span class="font-mono text-[10px] text-[var(--color-ink-soft)]">
-                {{ formatMoney(product.revenue) }}
-              </span>
-            </div>
-          </li>
-        </ol>
-        <div v-else class="flex flex-col items-center gap-1.5 py-6 text-center">
-          <span
-            class="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-paper)] text-[var(--color-ink-soft)]"
-          >
-            <Icon name="cart" :size="18" />
-          </span>
-          <p class="text-sm font-semibold">{{ t('reports.no_sales') }}</p>
-          <p class="text-xs text-[var(--color-ink-soft)]">{{ t('reports.no_sales_hint') }}</p>
+          </SectionCard>
         </div>
-      </SectionCard>
-
-      <StatTile
-        icon="warning"
-        :tone="report.write_offs_total > 0 ? 'danger' : 'default'"
-        :label="t('reports.losses')"
-        :value="report.write_offs_total"
-        :hint="t('reports.losses_hint')"
-      />
-
-      <!-- Downloads -->
-      <SectionCard icon="download" :title="t('reports.dl_title')">
-        <template #aside>
-          <span
-            class="shrink-0 rounded-full bg-[var(--color-paper)] px-2 py-1 text-[10px] font-semibold text-[var(--color-ink-soft)] ring-1 ring-inset ring-[var(--color-line)]"
-          >
-            {{
-              t('reports.dl_period', {
-                period: t(`reports.period_name.${period}`),
-                range: rangeLabel,
-              })
-            }}
-          </span>
-        </template>
-
-        <div class="grid grid-cols-2 gap-2">
-          <button
-            v-for="file in fileButtons"
-            :key="file.ext"
-            type="button"
-            :disabled="busy !== null"
-            class="flex items-center gap-2.5 rounded-xl p-3 text-left transition active:scale-[0.98] disabled:opacity-60"
-            :class="
-              file.primary
-                ? 'bg-[var(--color-accent)] text-white'
-                : 'border border-[var(--color-line)] bg-[var(--color-surface)]'
-            "
-            @click="downloadReport(file.ext)"
-          >
-            <span
-              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
-              :class="
-                file.primary
-                  ? 'bg-white/20'
-                  : 'bg-[var(--color-paper)] text-[var(--color-ink-soft)]'
-              "
-            >
-              <Icon :name="busy === file.ext ? 'clock' : file.icon" :size="18" />
-            </span>
-            <span class="min-w-0 leading-tight">
-              <span class="block text-sm font-bold">
-                {{ busy === file.ext ? t('reports.dl_preparing') : file.title }}
-              </span>
-              <span
-                class="block truncate text-[11px]"
-                :class="file.primary ? 'text-white/80' : 'text-[var(--color-ink-soft)]'"
-              >
-                {{ file.sub }}
-              </span>
-            </span>
-          </button>
-        </div>
-
-        <div class="mt-2">
-          <InfoHint :label="t('reports.dl_steps_title')">
-            <p>{{ t('reports.dl_excel_hint') }}</p>
-            <p>{{ t('reports.dl_step1') }}</p>
-            <p>{{ t('reports.dl_step2') }}</p>
-            <p>{{ t('reports.dl_step3') }}</p>
-            <p>{{ t('reports.dl_where') }}</p>
-          </InfoHint>
-        </div>
-      </SectionCard>
-
-      <SectionCard icon="box" :title="t('reports.stock_lists')">
-        <div class="divide-y divide-[var(--color-line)]">
-          <button
-            v-for="item in stockLists"
-            :key="item.id"
-            type="button"
-            :disabled="busy !== null"
-            class="flex w-full items-center gap-2.5 py-2 text-left transition active:opacity-70 disabled:opacity-60"
-            @click="item.run"
-          >
-            <span
-              class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-              :class="item.tone"
-            >
-              <Icon :name="item.icon" :size="16" />
-            </span>
-            <span class="min-w-0 flex-1 leading-tight">
-              <span class="block truncate text-sm font-semibold">
-                {{ busy === item.id ? t('reports.dl_preparing') : item.title }}
-              </span>
-              <span class="block truncate text-[11px] text-[var(--color-ink-soft)]">{{
-                item.hint
-              }}</span>
-            </span>
-            <span
-              class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-ink)] text-white"
-            >
-              <Icon name="download" :size="14" />
-            </span>
-          </button>
-        </div>
-      </SectionCard>
+      </div>
     </div>
   </div>
 </template>
