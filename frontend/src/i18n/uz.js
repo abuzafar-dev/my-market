@@ -118,6 +118,14 @@ export default {
     finish: 'Yakunlash',
     sold: 'Sotuv yakunlandi',
     customer_added: "Mijoz qo'shildi: {name}",
+    qty: 'Miqdor',
+    remove: 'Olib tashlash',
+    clear: 'Tozalash',
+    clear_title: 'Savatni tozalaysizmi?',
+    clear_text: '{n} ta mahsulot savatdan olib tashlanadi.',
+    cash_received: 'Mijoz bergan pul (ixtiyoriy)',
+    change: 'Qaytim',
+    short: 'Yetmaydi',
   },
 
   kg: {

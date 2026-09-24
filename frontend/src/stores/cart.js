@@ -7,11 +7,31 @@ import { uuid } from '@/utils/uuid'
 // stores 3 decimals — round every quantity to match.
 const roundQty = (qty) => Math.round(qty * 1000) / 1000
 
+// The cart survives a page reload or an accidental tab close — losing a
+// half-scanned basket in front of a customer is the worst case at the till.
+// Prices/stock in the saved snapshot may be stale; the server re-checks both
+// at checkout anyway. Storage can be unavailable (private mode), so every
+// access is guarded and the cart just stays in memory then.
+const STORAGE_KEY = 'cart:v1'
+
+function loadSaved() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY))
+    if (Array.isArray(saved?.items) && saved.clientId) return saved
+  } catch {
+    // Corrupt or blocked storage — start empty.
+  }
+  return null
+}
+
 export const useCartStore = defineStore('cart', {
-  state: () => ({
-    items: [], // { product, qty }
-    clientId: uuid(),
-  }),
+  state: () => {
+    const saved = loadSaved()
+    return {
+      items: saved?.items ?? [], // { product, qty }
+      clientId: saved?.clientId ?? uuid(),
+    }
+  },
 
   getters: {
     total: (state) =>
@@ -20,6 +40,21 @@ export const useCartStore = defineStore('cart', {
   },
 
   actions: {
+    save() {
+      try {
+        if (this.items.length) {
+          localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({ items: this.items, clientId: this.clientId }),
+          )
+        } else {
+          localStorage.removeItem(STORAGE_KEY)
+        }
+      } catch {
+        // Storage full or blocked — the in-memory cart still works.
+      }
+    },
+
     // Adding/removing lines never touches the network — the whole point
     // is that it's instant, no matter how slow the connection is
     // (TZ v2 1.3 / 4.2). The server always re-checks stock at checkout
@@ -40,6 +75,7 @@ export const useCartStore = defineStore('cart', {
       } else if (capped > 0) {
         this.items.push({ product, qty: capped })
       }
+      this.save()
 
       return capped < wanted
     },
@@ -56,17 +92,20 @@ export const useCartStore = defineStore('cart', {
       } else {
         item.qty = capped
       }
+      this.save()
 
       return capped < qty
     },
 
     removeProduct(productId) {
       this.items = this.items.filter((item) => item.product.id !== productId)
+      this.save()
     },
 
     clear() {
       this.items = []
       this.clientId = uuid()
+      this.save()
     },
 
     async checkout(paymentType, customerId) {
