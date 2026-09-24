@@ -487,7 +487,7 @@ HTTPS'da ishlaydi.
 
 ```bash
 .venv/bin/ruff check . && .venv/bin/ruff format --check .
-DJANGO_SETTINGS_MODULE=config.settings.test .venv/bin/python manage.py test     # ~155 ta test (33 tasi — xavfsizlik)
+DJANGO_SETTINGS_MODULE=config.settings.test .venv/bin/python manage.py test     # ~230 ta test (34 tasi — xavfsizlik)
 .venv/bin/python manage.py makemigrations --check --dry-run
 cd frontend && npm run lint && npm run build
 ```
@@ -496,8 +496,11 @@ cd frontend && npm run lint && npm run build
 
 ## 4. Kundalik foydalanish
 
-Ilova telefonda ham, kompyuterda ham ishlaydi. Pastdagi (kompyuterda —
-chapdagi) menyu:
+Ilova telefonda, planshetda va kompyuterda ishlaydi — ekran o'lchamiga o'zi
+moslashadi (eng kichik 320px telefondan katta monitorgacha). Menyu:
+telefonda — **pastda**; planshetda va yotqizilgan telefonda — chapda
+**ixcham ikonkalar** paneli; kompyuterda — chapda **to'liq menyu**. Mayda
+yozuvni ikki barmoq bilan kattalashtirish (zoom) mumkin.
 
 | Belgi | Bo'lim | Nima qilinadi |
 |---|---|---|
@@ -518,6 +521,44 @@ tovar), 👤 profil menyusi.
 | 🟡 sariq | tez tugaydi (minimal qoldiqning 2 baravaridan kam) |
 | 🔴 qizil | minimal qoldiq yoki undan kam |
 | ⛔ to'q qizil | tugagan |
+
+### Sotuv
+
+- **Savat saqlanib qoladi:** sahifa yangilansa yoki brauzer yopilib qolsa ham
+  savat yo'qolmaydi. Sotuv sahifasi qayta ochilganda savatdagi mahsulotlar
+  serverdan qayta tekshiriladi: narx yoki qoldiq o'zgargan bo'lsa yangilanadi,
+  arxivlangan mahsulot olib tashlanadi va bu haqda xabar chiqadi.
+- **Tez tugmalar** — shtrix-kodsiz (non, meva, kg'lik) mahsulotlar: oxirgi
+  90 kunda eng ko'p sotilganlari birinchi.
+- **Miqdor** qatorida qo'lda yoziladi; kg/litr mahsulotda kasr son (0.5),
+  donada faqat butun son.
+- **Qaytim** (naqd to'lovda): "Mijoz bergan pul"ni yozsangiz, qaytim o'zi
+  hisoblanadi.
+- **Klaviatura:** `/` — qidiruvga o'tish, `Enter` — birinchi topilganini
+  qo'shish, `Ctrl+Enter` — sotuvni yakunlash.
+- Boshqa kassa shu orada mahsulotni sotib yuborgan bo'lsa, "yetarli emas"
+  xatosidan keyin savat va tez tugmalar o'zi yangilanadi.
+- Internet uzilib, **Yakunlash** qayta bosilsa ham sotuv **ikki marta
+  yozilmaydi** — o'sha chek qaytadi.
+
+### Chekni bekor qilish
+
+Chekni oching → **Chekni bekor qilish** → tasdiqlang. Tovarlar omborga
+qaytadi; qarzga sotilgan bo'lsa, mijoz qarzi shuncha kamayadi (bu hisobotda
+"qarz to'lovi" deb sanalmaydi). **Egasi** istalgan chekni, **sotuvchi** faqat
+o'zining **bugungi** chekini bekor qila oladi.
+
+### Qarz daftari
+
+- Yuqorida **Jami qarz** va **Qarzdorlar** soni. Qarzdorlar kartochkasini
+  bossangiz, ro'yxatda faqat qarzi borlar qoladi (yana bossangiz — hammasi).
+- Qidiruv **ism yoki telefon** bo'yicha. Qatordagi 📞 — bir bosishda qo'ng'iroq.
+- Mijozni oching: **+ Qarz** yoki **− To'lov** yozasiz; **To'liq** tugmasi
+  butun qarzni to'lov maydoniga qo'yadi. Qarzdan ko'p to'lov yozilsa, ilova
+  avval so'raydi — ortig'i mijozning haqi bo'lib qoladi.
+- **Tarix**da har yozuv kim tomonidan kiritilgani ko'rinadi; sotuvdan kelgan
+  qarz o'z chekiga bog'langan.
+- Arxivlangan mijozga yangi nasiya yozib bo'lmaydi.
 
 ### Mahsulot qo'shish
 
@@ -573,6 +614,21 @@ mumkin — skaner qo'llanmasidagi "suffix: Enter (CR)" shtrix-kodini skanerlang
 (b) skaner juda sekin yozsa (belgilar orasi 70 ms dan ko'p) odam yozishi deb
 hisoblanadi; (c) klaviatura tili **Lotin (EN)** bo'lsin.
 
+### Hisobot (egasi)
+
+**Kunlik / Haftalik / Oylik** — savdo, kassadagi pul (naqd + karta), foyda,
+cheklar soni va o'rtacha chek. Har ko'rsatkich yonida **oldingi davrning
+xuddi shu bo'lagi** bilan farq (▲/▼ %): bugun — kecha bilan, hafta —
+o'tgan haftaning dushanbadan shu kungacha bo'lagi bilan, oy — o'tgan oyning
+1-sanadan shu kungacha bo'lagi bilan.
+
+Yana: kunlar (yoki soatlar) bo'yicha savdo, to'lov turlari ulushi, **nasiya**
+(davrda qarzga sotilgani, qaytarilgan to'lovlar, hozirgi jami qarz), eng ko'p
+sotilgan 5 mahsulot va yo'qotishlar (hisobdan chiqarilgan tovar tannarxi).
+
+"Bugun" — **Toshkent vaqti** bo'yicha: server boshqa vaqt mintaqasida
+bo'lsa ham, kun yarim tunda almashadi.
+
 ### Hisobotdan fayl olish
 
 **Hisobot** → yuqorida **Kunlik / Haftalik / Oylik** ni tanlang → pastdagi
@@ -585,7 +641,8 @@ yoki kompyuterning **Yuklamalar (Downloads)** papkasiga tushadi.
 ### Til, chiqish
 
 👤 → **Profil sozlamalari**: til (O'zbekcha / Русский), ogohlantirish kunlari
-(egasi), **Chiqish**. Ilovadan parolni almashtirib bo'lmaydi.
+(egasi; 1 dan 365 gacha — muddati tugashiga shuncha kun qolganda 🔔 da
+chiqadi), **Chiqish**. Ilovadan parolni almashtirib bo'lmaydi.
 
 ### Xato kiritilgan mahsulotni tuzatish (egasi)
 
@@ -711,6 +768,8 @@ esa shu sahifadagi **O'chirib tashlash** butunlay o'chiradi.
 | Login: "Juda ko'p urinish qilindi" | 5 marta noto'g'ri parol kiritildi — shu qurilma 15 daqiqaga bloklandi. Kuting yoki: `docker compose exec backend python manage.py shell -c "from django.core.cache import cache; cache.clear()"` |
 | Login: "Telefon raqam yoki parol noto'g'ri" | Raqam va parolni tekshiring. Parolni unutgan bo'lsangiz: `docker compose exec backend python manage.py changepassword +998901234567` |
 | Disk to'ldi | `docker builder prune -f && docker image prune -f` (faqat keraksiz build keshi va nomsiz tasvirlar). **`docker system prune` ni ishlatmang** — boshqa loyihalarning to'xtab turgan konteynerlarini ham o'chiradi. |
+| Sotuv sahifasida "Savat yangilandi..." chiqdi | Xato emas: savat saqlanganidan beri narx yoki qoldiq o'zgargan yoki mahsulot arxivlangan. Savatni tekshirib, davom eting. |
+| Kategoriya qo'shganda "Bunday kategoriya allaqachon bor" | Shu nomli kategoriya bor (katta-kichik harf farqi hisobga olinmaydi). Ro'yxatdan tanlang. |
 | Ruscha rejimda ba'zi xato xabarlari o'zbekcha | Tanish bo'lmagan server xabari ko'rsatilmaydi, umumiy xabar chiqadi. Yangi xabar qo'shilsa, `frontend/src/utils/errors.js` ga tarjimasini qo'shing. |
 
 ---
