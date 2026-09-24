@@ -334,7 +334,9 @@ const stockLists = computed(() => [
 
       <!-- Wide screens: the long per-day / per-hour list on the left, the
            shorter cards stacked on the right. Phones: one column. -->
-      <div class="grid items-start gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+      <div
+        class="grid grid-cols-[minmax(0,1fr)] items-start gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]"
+      >
         <div class="space-y-3">
           <!-- Sales per day / per hour -->
           <SectionCard

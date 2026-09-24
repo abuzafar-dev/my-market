@@ -20,7 +20,10 @@ const showNav = computed(() => route.name !== 'login')
 <template>
   <div
     class="min-h-dvh"
-    :class="{ 'pb-[calc(var(--bottom-nav-h)+1rem)] md:pb-0 md:pl-60': showNav }"
+    :class="{
+      'pb-[calc(var(--bottom-nav-h)+1rem)] md:pb-0 md:pl-[calc(var(--side-nav-w)+env(safe-area-inset-left))]':
+        showNav,
+    }"
   >
     <AppHeader v-if="showNav" />
     <RouterView />

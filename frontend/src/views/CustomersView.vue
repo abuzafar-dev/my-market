@@ -166,10 +166,12 @@ onBeforeUnmount(() => {
               {{ t('debt.total_debt') }}
             </p>
             <p
-              class="mt-1 font-mono text-xl font-bold text-[var(--color-danger)] lg:mt-2 lg:text-2xl"
+              class="mt-1 flex flex-wrap items-baseline gap-x-1 font-mono text-lg font-bold text-[var(--color-danger)] sm:text-xl lg:mt-2 lg:text-2xl"
             >
-              {{ formatMoney(summary.total_debt) }}
-              <span class="font-sans text-xs font-normal text-[var(--color-ink-soft)]">
+              <span class="whitespace-nowrap">{{ formatMoney(summary.total_debt) }}</span>
+              <span
+                class="whitespace-nowrap font-sans text-xs font-normal text-[var(--color-ink-soft)]"
+              >
                 {{ t('common.som') }}
               </span>
             </p>
@@ -268,12 +270,12 @@ onBeforeUnmount(() => {
 
         <div
           v-else
-          class="overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)]"
+          class="@container overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)]"
         >
           <!-- Column headings, only where there is room for columns -->
           <div
             v-if="customers.length"
-            class="hidden border-b border-[var(--color-line)] bg-[var(--color-paper)] py-2.5 pl-4 pr-14 text-xs font-semibold uppercase tracking-wide text-[var(--color-ink-soft)] md:grid md:grid-cols-[minmax(0,1fr)_11rem_10rem]"
+            class="hidden border-b border-[var(--color-line)] bg-[var(--color-paper)] py-2.5 pl-4 pr-14 text-xs font-semibold uppercase tracking-wide text-[var(--color-ink-soft)] @xl:grid @xl:grid-cols-[minmax(0,1fr)_10rem_9rem]"
           >
             <span>{{ t('debt.customer') }}</span>
             <span>{{ t('debt.phone') }}</span>
@@ -287,7 +289,7 @@ onBeforeUnmount(() => {
           >
             <RouterLink
               :to="{ name: 'customer-detail', params: { id: customer.id } }"
-              class="flex min-w-0 flex-1 items-center justify-between gap-3 py-3 pl-4 pr-1 md:grid md:grid-cols-[minmax(0,1fr)_11rem_10rem]"
+              class="flex min-w-0 flex-1 items-center justify-between gap-3 py-3 pl-3 pr-1 @xs:pl-4 @xl:grid @xl:grid-cols-[minmax(0,1fr)_10rem_9rem]"
             >
               <div class="flex min-w-0 items-center gap-3">
                 <span
@@ -304,17 +306,19 @@ onBeforeUnmount(() => {
                   <p class="truncate font-semibold">{{ customer.full_name }}</p>
                   <p
                     v-if="customer.phone"
-                    class="mt-0.5 truncate font-mono text-[11px] text-[var(--color-ink-soft)] md:hidden"
+                    class="mt-0.5 truncate font-mono text-[11px] text-[var(--color-ink-soft)] @xl:hidden"
                   >
                     {{ customer.phone }}
                   </p>
                 </div>
               </div>
-              <span class="hidden truncate font-mono text-sm text-[var(--color-ink-soft)] md:block">
+              <span
+                class="hidden truncate font-mono text-sm text-[var(--color-ink-soft)] @xl:block"
+              >
                 {{ customer.phone || '—' }}
               </span>
               <span
-                class="shrink-0 text-right font-mono font-bold"
+                class="shrink-0 whitespace-nowrap text-right font-mono font-bold"
                 :class="
                   customer.debt_balance > 0
                     ? 'text-[var(--color-danger)]'
@@ -322,13 +326,16 @@ onBeforeUnmount(() => {
                 "
               >
                 {{ formatMoney(customer.debt_balance) }}
-                <span class="font-sans text-xs font-normal text-[var(--color-ink-soft)]">
+                <!-- The "so'm" suffix yields its room to the name on tiny screens. -->
+                <span
+                  class="hidden font-sans text-xs font-normal text-[var(--color-ink-soft)] @xs:inline"
+                >
                   {{ t('common.som') }}
                 </span>
               </span>
             </RouterLink>
             <!-- One tap to call a debtor; a sibling of the row link, not inside it. -->
-            <div class="flex w-12 shrink-0 justify-center">
+            <div class="flex w-11 shrink-0 justify-center @xs:w-12">
               <a
                 v-if="customer.phone"
                 :href="`tel:${customer.phone}`"

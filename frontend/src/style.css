@@ -86,6 +86,41 @@
 /* Height of the phone bottom bar (incl. the iPhone home-indicator inset). */
 :root {
   --bottom-nav-h: calc(3.75rem + env(safe-area-inset-bottom));
+  /* Side navigation: none on phones, a 5rem icon rail on tablets and
+     landscape phones (md), the full 15rem sidebar from lg. */
+  --side-nav-w: 0px;
+}
+@media (min-width: 48rem) {
+  :root {
+    --side-nav-w: 5rem;
+  }
+}
+@media (min-width: 64rem) {
+  :root {
+    --side-nav-w: 15rem;
+  }
+}
+
+/* Phones rotated to landscape must not blow the text up (iOS does by
+   default), and nothing may push the page sideways: long names and numbers
+   wrap instead of overflowing on a 320px screen. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overflow-x: clip;
+}
+body {
+  overflow-wrap: break-word;
+}
+
+/* In landscape, notched phones cut into the sides; keep content clear. */
+#app {
+  padding-right: env(safe-area-inset-right);
+}
+@media (max-width: 47.99rem) {
+  #app {
+    padding-left: env(safe-area-inset-left);
+  }
 }
 
 html,
@@ -115,6 +150,17 @@ select {
 
 button {
   cursor: pointer;
+}
+
+/* Pinch-zoom is allowed (accessibility), so iOS would also zoom in on every
+   field with text under 16px when it gets focus. Keep form text at 16px on
+   touch screens; mouse users keep the compact sizes. */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: max(1rem, 1em);
+  }
 }
 
 input,

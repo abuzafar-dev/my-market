@@ -282,7 +282,7 @@ async function checkout() {
 
 <template>
   <div
-    class="mx-auto grid w-full max-w-[110rem] gap-5 px-4 py-6 md:px-8 lg:grid-cols-[1fr_26rem] xl:grid-cols-[1fr_30rem]"
+    class="mx-auto grid w-full max-w-[110rem] gap-5 px-4 py-6 md:px-8 lg:grid-cols-[minmax(0,1fr)_24rem] xl:grid-cols-[minmax(0,1fr)_30rem]"
   >
     <!-- Catalog column -->
     <div>
@@ -352,7 +352,7 @@ async function checkout() {
       </p>
       <div
         v-if="quickProducts.length"
-        class="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]"
+        class="grid grid-cols-[repeat(auto-fill,minmax(min(9rem,100%),1fr))] gap-3 sm:grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]"
       >
         <button
           v-for="product in quickProducts"
@@ -403,7 +403,7 @@ async function checkout() {
     <!-- On wide screens the cart fills the viewport height: lines scroll in
          the middle, the total and checkout stay pinned at the bottom. -->
     <div
-      class="lg:sticky lg:top-[calc(5.5rem+env(safe-area-inset-top))] lg:h-[calc(100dvh-7rem-env(safe-area-inset-top))] lg:self-start"
+      class="lg:sticky lg:top-[calc(5.5rem+env(safe-area-inset-top))] lg:h-[max(30rem,calc(100dvh-7rem-env(safe-area-inset-top)))] lg:self-start"
     >
       <div
         class="flex h-full flex-col overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)]"

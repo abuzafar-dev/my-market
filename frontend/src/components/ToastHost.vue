@@ -59,7 +59,7 @@ const ICONS = { success: 'check', error: 'close', warn: 'warning', info: 'bell' 
   </div>
 
   <div
-    class="pointer-events-none fixed inset-x-0 bottom-[calc(var(--bottom-nav-h)+2.25rem)] z-[60] flex justify-center px-4 md:bottom-6 md:left-60"
+    class="pointer-events-none fixed inset-x-0 bottom-[calc(var(--bottom-nav-h)+2.25rem)] z-[60] flex justify-center px-4 md:bottom-6 md:left-[var(--side-nav-w)]"
     aria-live="polite"
   >
     <Transition name="pill">

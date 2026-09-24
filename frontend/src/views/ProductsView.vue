@@ -144,7 +144,7 @@ onBeforeUnmount(() => {
       </RouterLink>
     </PageTitle>
 
-    <div class="mb-4 flex flex-col gap-3 sm:flex-row">
+    <div class="mb-4 flex flex-col gap-3 lg:flex-row">
       <div class="relative flex-1">
         <Icon
           name="search"
@@ -161,7 +161,7 @@ onBeforeUnmount(() => {
           @keydown.esc="clearSearch"
         />
       </div>
-      <div class="flex gap-2 overflow-x-auto">
+      <div class="-mx-4 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:px-0">
         <button
           v-for="f in filters"
           :key="f[0]"
@@ -208,7 +208,10 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <div v-if="loading" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+    <div
+      v-if="loading"
+      class="grid grid-cols-[repeat(auto-fill,minmax(min(8.5rem,100%),1fr))] gap-3"
+    >
       <div
         v-for="i in 10"
         :key="i"
@@ -217,7 +220,7 @@ onBeforeUnmount(() => {
     </div>
 
     <div v-else>
-      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      <div class="grid grid-cols-[repeat(auto-fill,minmax(min(8.5rem,100%),1fr))] gap-3">
         <div v-for="product in products" :key="product.id" class="relative flex">
           <component
             :is="isOwner ? 'RouterLink' : 'div'"
@@ -259,9 +262,9 @@ onBeforeUnmount(() => {
               <p class="line-clamp-2 text-sm font-semibold leading-snug" :title="product.name">
                 {{ product.name }}
               </p>
-              <div class="mt-auto flex items-end justify-between gap-1 pt-1">
+              <div class="mt-auto flex flex-wrap items-end justify-between gap-1 pt-1">
                 <span
-                  class="font-mono text-sm font-bold"
+                  class="whitespace-nowrap font-mono text-sm font-bold"
                   :class="{
                     'text-[var(--color-ink-soft)] font-normal': Number(product.stock) <= 0,
                   }"

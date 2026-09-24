@@ -51,10 +51,15 @@ const TONES = {
       <Icon :name="icon" :size="17" />
     </span>
     <div class="min-w-0 flex-1">
-      <p class="truncate text-[11px] font-semibold text-[var(--color-ink-soft)]">{{ label }}</p>
-      <p class="font-mono text-[15px] font-bold leading-tight" :class="TONES[tone].value">
-        {{ formatMoney(value) }}
-        <span class="text-[10px] font-semibold text-[var(--color-ink-soft)]">
+      <p class="line-clamp-2 text-[11px] font-semibold leading-tight text-[var(--color-ink-soft)]">
+        {{ label }}
+      </p>
+      <p
+        class="flex flex-wrap items-baseline gap-x-1 font-mono text-[15px] font-bold leading-tight"
+        :class="TONES[tone].value"
+      >
+        <span class="whitespace-nowrap">{{ formatMoney(value) }}</span>
+        <span class="whitespace-nowrap text-[10px] font-semibold text-[var(--color-ink-soft)]">
           {{ unit ?? t('common.som') }}
         </span>
       </p>
