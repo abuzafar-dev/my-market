@@ -20,17 +20,44 @@ common issues) see [QOLLANMA.md](QOLLANMA.md).
   - `apps/sales` — checkout (idempotent on a client-generated ID),
     cancellation.
   - `apps/debt` — customers and their debt ledger (debt/payment
-    entries).
-  - `apps/reports` — sales stats, per-day / per-hour breakdown, and
-    period reports as Excel (4 sheets) or CSV.
+    entries), a debtors-only filter, search by name or phone, and a
+    shop-wide "who owes what" summary.
+  - `apps/reports` — sales stats, per-day / per-hour breakdown, a
+    comparison with the same stretch of the previous period, the credit
+    (nasiya) picture, and period reports as Excel (4 sheets) or CSV.
   - `apps/common` — shared response envelope, exception handling, the
     `IsOwner` permission class.
-- **Frontend** — Vue 3 + Pinia + Vite (`frontend/`), a PWA that talks to
-  the API over HTTP; Django never serves its HTML. Uzbek and Russian UI
-  (`frontend/src/i18n/`), switchable at runtime.
+- **Frontend** — Vue 3 + Pinia + Vite + Tailwind 4 (`frontend/`), a PWA
+  that talks to the API over HTTP; Django never serves its HTML. Uzbek
+  and Russian UI (`frontend/src/i18n/`), switchable at runtime.
+  Responsive from a 320px phone to a wide monitor: a bottom tab bar on
+  phones, a slim icon rail on tablets and landscape phones (`md`), the
+  full sidebar from `lg`; grids size themselves (`auto-fill`) and lists
+  use container queries, so layout follows the space actually available.
+  Pinch-zoom stays enabled and notch (safe-area) insets are respected.
 
 Every API response is `{"data": ..., "error": ...}`; business logic
 lives in each app's `services.py`, not in views.
+
+### Business rules worth knowing
+
+- **Stock is never stored** — it is summed live from batches'
+  `qty_remaining`. Batches are sold oldest first; ties are broken the same
+  way everywhere (`FIFO_ORDER` in `apps/catalog/services.py`), so the
+  preview price is always the batch checkout will take.
+- **Checkout is idempotent** on the client-generated `client_id`: a retry
+  returns the original sale, even if a product was archived or sold out
+  in between. Cart lines are merged per product and locked in a fixed
+  order, so concurrent tills can't deadlock.
+- **"Today" is the shop's date** (`TIME_ZONE = Asia/Tashkent`,
+  `timezone.localdate()`), never the server clock's — reports and expiry
+  warnings don't shift by five hours on a UTC server.
+- **Debt totals** count only customers who owe (`debt_balance > 0`); a
+  cancelled credit sale reverses its debt but is not counted as a
+  repayment.
+- **The saved cart is re-checked**: the sale screen re-reads the products
+  of a cart restored from the browser (`GET /api/products/?ids=...`),
+  dropping archived ones and capping quantities at current stock.
 
 ## Local setup (without Docker)
 
@@ -67,9 +94,17 @@ setup.
 ```bash
 cd frontend
 npm install
-cp .env.example .env.local   # set VITE_API_URL to your backend's /api URL
 npm run dev
 ```
+
+By default the SPA calls `https://<the page's own hostname>:8000/api`, so it
+works from `localhost` and from a phone on the LAN alike. Set
+`VITE_API_URL` in `frontend/.env.local` only to point somewhere else.
+
+`scripts/dev.sh` starts both servers over HTTPS in one go: it detects the
+machine's LAN IP, regenerates the shared self-signed certificate and updates
+`.env` (`DEV_LAN_HOST`, `CORS_ALLOWED_ORIGINS`) — see
+[QOLLANMA.md §3](QOLLANMA.md#3-dasturchi-rejimi).
 
 ### Tests
 
@@ -120,7 +155,7 @@ archive`, so gitignored secrets never end up in an ad-hoc export.
 
 ## Security
 
-Covered by 33 dedicated tests (`apps/common/test_security.py`): per-shop data
+Covered by 34 dedicated tests (`apps/common/test_security.py`): per-shop data
 isolation on every endpoint, login lockout (per address + per phone, shared by
 all workers, also for the admin), session revocation on password change /
 logout, rate limits, input bounds, spreadsheet-formula and upload hardening.
