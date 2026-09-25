@@ -614,6 +614,34 @@ mumkin — skaner qo'llanmasidagi "suffix: Enter (CR)" shtrix-kodini skanerlang
 (b) skaner juda sekin yozsa (belgilar orasi 70 ms dan ko'p) odam yozishi deb
 hisoblanadi; (c) klaviatura tili **Lotin (EN)** bo'lsin.
 
+### Svet o'chsa — telefondan ishlash
+
+Ilova serverda ishlaydi, kompyuterda emas: kompyuter faqat uni ochadigan
+brauzer. Shuning uchun kompyuterda svet o'chsa (yoki kompyuter buzilsa),
+telefonda internet bo'lsa bas — do'kon to'xtamaydi.
+
+1. Telefonda brauzerni oching va kompyuterdagi **o'sha manzilni** kiriting
+   (masalan `https://market.203-0-113-5.sslip.io`).
+2. **O'sha telefon raqam va parol** bilan kiring.
+3. Hammasi o'sha joyda: mahsulotlar, qoldiq, qarz daftari, hisobot. Telefondan
+   qilingan sotuv kompyuterdagi hisobotga ham tushadi.
+4. Shtrix-kodni **telefon kamerasi** bilan o'qing (pastdagi ▮▮ tugmasi) yoki
+   Bluetooth skanerni telefonga juftlang (yuqoridagi bo'lim).
+
+**Oldindan tayyorlab qo'ying:** telefonda bir marta kirib, brauzer menyusidan
+**"Bosh ekranga qo'shish"** ni bosing — ilova telefonda oddiy ilovadek ikonka
+bilan ochiladi va svet o'chganda manzilni eslab o'tirmaysiz.
+
+- **Tugallanmagan savat** faqat o'sha qurilma brauzerida saqlanadi: kompyuterda
+  terilgan, lekin sotilmagan savat telefonda ko'rinmaydi — o'sha xaridni
+  telefonda qayta tering. **Yakunlangan sotuvlar** serverda, ular yo'qolmaydi.
+- Bu **oflayn rejim emas**: telefonda ham internet bo'lishi shart.
+
+> ⚠️ Bu faqat server **internetdagi serverda (VPS)** tursa ishlaydi
+> (1-bo'limdagi o'rnatish shunday). Ilova do'kondagi kompyuterning o'zida
+> ishga tushirilgan bo'lsa (3-bo'lim, dasturchi rejimi), svet o'chganda server
+> ham o'chadi va telefon ulana olmaydi.
+
 ### Hisobot (egasi)
 
 **Kun / Hafta / Oy** ni tanlang, yonidagi **‹ ›** bilan oldingi yoki keyingi
