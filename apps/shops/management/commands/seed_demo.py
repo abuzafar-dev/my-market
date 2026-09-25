@@ -13,6 +13,7 @@ from typing import Any
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
+from apps.catalog.demo_images import demo_image
 from apps.catalog.models import Batch, Category, Product
 from apps.shops.models import Shop, ShopSettings, User
 
@@ -64,6 +65,7 @@ class Command(BaseCommand):
                 name=name,
                 unit=unit,
                 barcode=barcode,
+                image=demo_image(name, category),
                 markup_amount=markup,
                 min_stock=Decimal(minimum),
             )

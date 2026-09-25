@@ -12,6 +12,7 @@ from decimal import Decimal
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
+from apps.catalog.demo_images import demo_image
 from apps.catalog.models import Batch, Category, Product
 from apps.shops.models import Shop
 
@@ -169,6 +170,9 @@ class Command(BaseCommand):
             default=0.6,
             help="Shtrix-kodli mahsulotlar ulushi, 0-1 oralig'ida (default: 0.6)",
         )
+        parser.add_argument(
+            "--no-images", action="store_true", help="Mahsulotlarga rasm qo'shilmasin"
+        )
 
     def handle(self, *args, **options):
         try:
@@ -190,6 +194,10 @@ class Command(BaseCommand):
             for item in items
             for brand in _BRANDS
         ]
+        # Re-running the command tops the catalog up instead of duplicating
+        # names that are already there.
+        existing_names = set(Product.objects.filter(shop=shop).values_list("name", flat=True))
+        combos = [c for c in combos if f"{c[2]} ({c[3]})" not in existing_names]
         random.shuffle(combos)
         combos = combos[:target_count]
 
@@ -228,6 +236,7 @@ class Command(BaseCommand):
                     name=name,
                     barcode=barcode,
                     unit=unit,
+                    image=None if options["no_images"] else demo_image(item, cat_name),
                     markup_amount=random.randrange(500, 5001, 500),
                     min_stock=min_stock,
                     is_active=True,
@@ -267,9 +276,11 @@ class Command(BaseCommand):
         Batch.objects.bulk_create(batches)
 
         with_barcode = sum(1 for p in products if p.barcode)
+        with_image = sum(1 for p in products if p.image)
         self.stdout.write(
             self.style.SUCCESS(
                 f"{len(products)} ta mahsulot yaratildi ({with_barcode} tasi shtrix-kodli, "
-                f"{len(products) - with_barcode} tasi shtrix-kodsiz), har biriga 1 tadan partiya bilan."
+                f"{len(products) - with_barcode} tasi shtrix-kodsiz, {with_image} tasi rasmli), "
+                "har biriga 1 tadan partiya bilan."
             )
         )
