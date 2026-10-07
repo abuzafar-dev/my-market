@@ -8,6 +8,39 @@ code and docs are in English.
 For day-to-day usage (login, admin panel walkthrough, adding products,
 common issues) see [QOLLANMA.md](QOLLANMA.md).
 
+## Screens
+
+The sale screen: search or scan, a cart that survives a reload, cash / card /
+credit, change calculation, and `Ctrl+Enter` to finish. Stock badges turn amber
+and red as a product runs low.
+
+![Sale screen](docs/screenshots/02-sotuv.png)
+
+Reports for any day, week or month — revenue, profit, receipt count and average
+receipt against the previous period, every product sold, the cash/card/credit
+split, outstanding credit, and Excel or CSV export.
+
+![Reports](docs/screenshots/06-hisobot.png)
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/03-kg-oynasi.png" alt="Weighed goods"><br>
+      <sub>Goods sold by weight get quick-amount buttons instead of a keypad.</sub></td>
+    <td width="50%"><img src="docs/screenshots/05-qarz.png" alt="Credit ledger"><br>
+      <sub>The credit ledger: who owes what, with payments against each customer.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/04-mahsulotlar.png" alt="Products"><br>
+      <sub>Products with live stock, category filter and barcode search.</sub></td>
+    <td><img src="docs/screenshots/01-login.png" alt="Login"><br>
+      <sub>Sign-in. Uzbek and Russian, switchable at runtime.</sub></td>
+  </tr>
+</table>
+
+It is a PWA, because the till is often a phone behind the counter:
+
+<img src="docs/screenshots/08-telefon.png" alt="On a phone" width="300">
+
 ## Architecture
 
 - **Backend** — Django 6 + Django REST Framework, JSON-only API (the
