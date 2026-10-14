@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# The single CI entry point for this repository.
+# Backend checks for the local ci-gate pre-push hook.
 #
-# GitHub Actions (.github/workflows/ci.yml) and the local ci-gate pre-push hook
-# both run this script, so a push is only accepted locally when the same checks
-# GitHub runs have passed. It stops at the first failing check and exits
+# It mirrors the backend job of .github/workflows/ci.yml (ruff, migrations
+# check, tests) but is not called by it; the frontend job (npm lint/build)
+# runs only in GitHub Actions. It stops at the first failing check and exits
 # non-zero.
 #
 #   scripts/ci.sh            # every check
