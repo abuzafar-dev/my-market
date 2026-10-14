@@ -696,16 +696,32 @@ chiqadi), **Chiqish**. Ilovadan parolni almashtirib bo'lmaydi.
 - **O'chirib tashlash** — mahsulot va uning kirimlari butunlay o'chadi.
   Mahsulot sotuvda qatnashgan bo'lsa o'chirilmaydi — uni **Arxivlash** kerak.
 
-### Doimiy admin
+### Operator (admin) akkaunti
 
-Ilova har ishga tushganda `manage.py ensure_admin` ishlaydi: telefon
-`777777777`, parol `admin1` (egasi huquqlari, eng birinchi do'kon). Admin
-saytga kirib do'kondagi hamma narsani ko'rib turadi. Parol o'zgarmaydi —
-qo'lda o'zgartirilsa ham keyingi ishga tushishda `admin1`ga qaytadi.
-Do'kon hali yaratilmagan bo'lsa, admin do'kon paydo bo'lgach yaratiladi.
+Kodda tayyor admin paroli yo'q. Operator akkaunti (egasi huquqlari, eng
+birinchi do'kon) faqat `.env`da ikkala qiymat berilganda yaratiladi:
 
-> ⚠️ `admin1` — hammaga oson topiladigan parol. Server internetda bo'lsa,
-> bu akkaunt orqali kim xohlasa do'kon ma'lumotlarini ko'ra oladi.
+```
+MARKET_ADMIN_PHONE=+998...
+MARKET_ADMIN_PASSWORD=...   # kamida 8 belgi, oddiy/faqat raqamli emas
+```
+
+Ilova har ishga tushganda `manage.py ensure_admin --if-configured` ishlaydi:
+
+- qiymatlar berilmagan bo'lsa — hech narsa qilmaydi;
+- faqat bittasi berilgan yoki parol zaif bo'lsa — xato yozadi, akkaunt
+  yaratilmaydi (do'kon baribir ishga tushadi);
+- shu telefonli akkaunt allaqachon bo'lsa — unga **tegmaydi** (parol, rol,
+  faollik o'zgarmaydi);
+- do'kon hali yo'q bo'lsa — do'kon paydo bo'lgach yaratiladi.
+
+Parol hech qachon ekranga yoki logga chiqmaydi. Parolni almashtirish:
+`docker compose exec backend python manage.py changepassword +998...`.
+
+> ⚠️ Eski versiyalar `+998777777777` akkauntini hammaga ma'lum parol bilan
+> yaratib, har ishga tushishda qayta tiklardi. Shu versiya ishlagan serverda
+> bu akkauntning parolini `changepassword` bilan almashtiring yoki uni
+> o'chirib qo'ying.
 
 ### Rollar
 

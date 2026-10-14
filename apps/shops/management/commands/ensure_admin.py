@@ -1,43 +1,89 @@
-"""Keep the one fixed admin account in place: an owner-level login that lets
-the platform operator open the site and see what is going on in the shop.
+"""Create the platform operator's owner-level login, once, from the environment.
 
-Runs on every container start (see docker-entrypoint.sh). The phone and the
-password are fixed on purpose — and since the app no longer lets anyone change
-a password, re-running this also puts the password back if it was altered
-elsewhere (Django admin, ``changepassword``).
+The phone and password come from ``MARKET_ADMIN_PHONE`` and
+``MARKET_ADMIN_PASSWORD`` (``.env`` or the container environment) — never from
+the code, never from a command-line argument, and the password is never
+printed. The password must pass Django's password validators.
+
+The account is only ever *created*: if a user with that phone already exists
+it is left exactly as it is (password, role, access). To change its password
+use ``manage.py changepassword <phone>``.
+
+docker-entrypoint.sh runs this with ``--if-configured`` on every start, so a
+server that sets neither variable simply gets no operator account.
 """
 
+from argparse import ArgumentParser
 from typing import Any
 
-from django.core.management.base import BaseCommand
+from decouple import config
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from apps.shops.models import Shop, User
+from apps.shops.serializers import normalize_phone
 
-ADMIN_PHONE = "+998777777777"
-ADMIN_PASSWORD = "admin1"  # pragma: allowlist secret
 ADMIN_NAME = "Admin"
 
 
 class Command(BaseCommand):
-    help = "Doimiy admin akkauntini (777777777 / admin1) yaratadi yoki tiklaydi."
+    help = (
+        "MARKET_ADMIN_PHONE va MARKET_ADMIN_PASSWORD o'zgaruvchilaridan admin (ega) "
+        "akkauntini bir marta yaratadi. Mavjud akkauntga tegmaydi."
+    )
+
+    def add_arguments(self, parser: ArgumentParser) -> None:
+        parser.add_argument(
+            "--if-configured",
+            action="store_true",
+            help="Ikkala o'zgaruvchi ham bo'sh bo'lsa, xatosiz o'tkazib yuborish (entrypoint uchun)",
+        )
 
     @transaction.atomic
     def handle(self, *args: Any, **options: Any) -> None:
-        admin = User.objects.filter(phone=ADMIN_PHONE).first()
+        raw_phone: str = config("MARKET_ADMIN_PHONE", default="").strip()
+        password: str = config("MARKET_ADMIN_PASSWORD", default="")
 
-        if admin is None:
-            # The admin looks into the first (oldest) shop; before any shop
-            # exists there is nothing to look into yet.
-            shop = Shop.objects.order_by("created_at").first()
-            if shop is None:
-                self.stdout.write("Hali do'kon yo'q — admin keyinroq yaratiladi.")
+        if not raw_phone and not password:
+            if options["if_configured"]:
+                self.stdout.write("MARKET_ADMIN_PHONE/PASSWORD berilmagan — admin yaratilmadi.")
                 return
-            admin = User(phone=ADMIN_PHONE, shop=shop, full_name=ADMIN_NAME)
+            raise CommandError("MARKET_ADMIN_PHONE va MARKET_ADMIN_PASSWORD berilishi kerak.")
+        if not raw_phone or not password:
+            raise CommandError(
+                "MARKET_ADMIN_PHONE va MARKET_ADMIN_PASSWORD ikkalasi ham berilishi kerak."
+            )
 
-        admin.role = User.Role.OWNER
-        admin.is_active = True
-        admin.is_staff = True
-        admin.set_password(ADMIN_PASSWORD)
+        phone = normalize_phone(raw_phone)
+        if User.objects.filter(phone=phone).exists():
+            self.stdout.write(f"{phone} akkaunti allaqachon bor — o'zgartirilmadi.")
+            return
+
+        # The admin looks into the first (oldest) shop; before any shop exists
+        # there is nothing to look into yet.
+        shop = Shop.objects.order_by("created_at").first()
+        if shop is None:
+            self.stdout.write("Hali do'kon yo'q — admin keyinroq yaratiladi.")
+            return
+
+        admin = User(
+            phone=phone,
+            shop=shop,
+            full_name=ADMIN_NAME,
+            role=User.Role.OWNER,
+            is_active=True,
+            is_staff=True,
+        )
+        try:
+            validate_password(password, user=admin)
+        except ValidationError as exc:
+            # the messages describe the rule that failed, never the password
+            raise CommandError(
+                "MARKET_ADMIN_PASSWORD yaroqsiz: " + " ".join(exc.messages)
+            ) from None
+
+        admin.set_password(password)
         admin.save()
-        self.stdout.write(self.style.SUCCESS(f"Admin tayyor: {ADMIN_PHONE} ({admin.shop.name})"))
+        self.stdout.write(self.style.SUCCESS(f"Admin yaratildi: {phone} ({shop.name})"))

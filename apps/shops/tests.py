@@ -195,23 +195,39 @@ class ProvisioningCommandTests(TestCase):
 
 
 class EnsureAdminTests(TestCase):
-    def run_command(self):
+    PHONE = "+998777777777"
+    PASSWORD = "Kassa-Daftar-2026!"  # pragma: allowlist secret
+
+    def run_command(self, env=None, *args):
+        from unittest import mock
+
         from django.core.management import call_command
 
-        call_command("ensure_admin", stdout=StringIO())
-
-    def login(self, phone="777777777", password="admin1"):  # pragma: allowlist secret
-        return APIClient().post(
-            "/api/auth/login/", {"phone": phone, "password": password}, format="json"
+        env = {"MARKET_ADMIN_PHONE": "777777777", "MARKET_ADMIN_PASSWORD": self.PASSWORD} | (
+            env or {}
         )
+        out, err = StringIO(), StringIO()
+        with mock.patch.dict("os.environ", env):
+            call_command("ensure_admin", *args, stdout=out, stderr=err)
+        return out.getvalue() + err.getvalue()
+
+    def login(self, password=None):
+        return APIClient().post(
+            "/api/auth/login/",
+            {"phone": self.PHONE, "password": password or self.PASSWORD},
+            format="json",
+        )
+
+    def make_shop(self):
+        return Shop.objects.create(name="Birinchi", phone="+998900000001")
 
     def test_it_waits_until_a_shop_exists(self):
         self.run_command()
 
-        self.assertFalse(User.objects.filter(phone="+998777777777").exists())
+        self.assertFalse(User.objects.filter(phone=self.PHONE).exists())
 
     def test_the_admin_logs_in_as_owner_of_the_first_shop(self):
-        first = Shop.objects.create(name="Birinchi", phone="+998900000001")
+        first = self.make_shop()
         Shop.objects.create(name="Ikkinchi", phone="+998900000002")
 
         self.run_command()
@@ -222,12 +238,80 @@ class EnsureAdminTests(TestCase):
         self.assertEqual(user["role"], "owner")
         self.assertEqual(user["shop_id"], str(first.id))
 
-    def test_rerunning_restores_the_password_and_access(self):
-        Shop.objects.create(name="Birinchi", phone="+998900000001")
+    def test_there_is_no_built_in_password(self):
+        from django.core.management.base import CommandError
+
+        self.make_shop()
+
+        with self.assertRaises(CommandError):
+            self.run_command({"MARKET_ADMIN_PHONE": "", "MARKET_ADMIN_PASSWORD": ""})
+        self.assertFalse(User.objects.filter(phone=self.PHONE).exists())
+
+    def test_if_configured_skips_quietly_when_nothing_is_set(self):
+        self.make_shop()
+
+        self.run_command({"MARKET_ADMIN_PHONE": "", "MARKET_ADMIN_PASSWORD": ""}, "--if-configured")
+
+        self.assertFalse(User.objects.filter(phone=self.PHONE).exists())
+
+    def test_half_a_configuration_is_an_error_even_with_if_configured(self):
+        from django.core.management.base import CommandError
+
+        self.make_shop()
+
+        for env in ({"MARKET_ADMIN_PASSWORD": ""}, {"MARKET_ADMIN_PHONE": ""}):
+            with self.subTest(env=env), self.assertRaises(CommandError):
+                self.run_command(env, "--if-configured")
+        self.assertFalse(User.objects.filter(phone=self.PHONE).exists())
+
+    def test_weak_passwords_are_refused_and_never_echoed(self):
+        from django.core.management.base import CommandError
+
+        self.make_shop()
+
+        for weak in ("admin1", "12345678", "qwertyuiop", "777777777"):
+            with self.subTest(weak=weak):
+                with self.assertRaises(CommandError) as ctx:
+                    self.run_command({"MARKET_ADMIN_PASSWORD": weak})
+                self.assertNotIn(weak, str(ctx.exception))
+        self.assertFalse(User.objects.filter(phone=self.PHONE).exists())
+
+    def test_the_password_is_never_printed(self):
+        self.make_shop()
+
+        output = self.run_command()
+
+        self.assertIn(self.PHONE, output)
+        self.assertNotIn(self.PASSWORD, output)
+
+    def test_rerunning_leaves_an_existing_account_alone(self):
+        self.make_shop()
         self.run_command()
-        User.objects.filter(phone="+998777777777").update(password="x", is_active=False)
+        admin = User.objects.get(phone=self.PHONE)
+        admin.set_password("Boshqa-Yangi-Parol-77")  # pragma: allowlist secret
+        admin.is_active = False
+        admin.save()
 
         self.run_command()
 
-        self.assertEqual(self.login().status_code, 200)
-        self.assertEqual(User.objects.filter(phone="+998777777777").count(), 1)
+        admin.refresh_from_db()
+        self.assertFalse(admin.is_active)
+        self.assertTrue(admin.check_password("Boshqa-Yangi-Parol-77"))
+        self.assertEqual(User.objects.filter(phone=self.PHONE).count(), 1)
+
+    def test_an_existing_seller_with_that_phone_is_not_promoted(self):
+        shop = self.make_shop()
+        User.objects.create_user(
+            phone=self.PHONE,
+            password="pass1234",
+            shop=shop,
+            full_name="Sotuvchi",
+            role=User.Role.SELLER,
+        )
+
+        self.run_command()
+
+        seller = User.objects.get(phone=self.PHONE)
+        self.assertEqual(seller.role, User.Role.SELLER)
+        self.assertFalse(seller.is_staff)
+        self.assertTrue(seller.check_password("pass1234"))
