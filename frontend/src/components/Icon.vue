@@ -31,6 +31,7 @@ import {
   Droplet,
   Flashlight,
   LogOut,
+  MessageCircle,
   Minus,
   Package,
   Plus,
@@ -38,6 +39,7 @@ import {
   RefreshCw,
   Scale,
   Search,
+  Send,
   Settings,
   ShoppingCart,
   Store,
@@ -106,6 +108,8 @@ const icons = {
   ruler: Ruler,
   pencil: Pencil,
   trash: Trash2,
+  chat: MessageCircle,
+  send: Send,
 }
 </script>
 

@@ -282,20 +282,64 @@ const debt = computed(() => report.value?.debt)
 // --- Files ---
 const busy = ref(null)
 
+function saveBlob(blob, filename) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  // Attached + delayed revoke: Safari/iOS can cancel the download if the
+  // link isn't in the DOM or the blob URL is freed straight away.
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+// The workbook is built by a worker (the whole file has to exist before its
+// first byte, so it used to hold a request open for the entire time). Queue it,
+// poll the job, then download. CSV is unchanged — it streams.
+async function queuedExport(id, params, fallbackName) {
+  busy.value = id
+  try {
+    const { data: job } = await api.post('/reports/export/', params)
+    toast.info(t('reports.dl_queued'))
+
+    let current = job
+    // ~60s at a steady second: longer than any report we have seen, short
+    // enough that a stuck worker surfaces as an error rather than a spinner.
+    for (let attempt = 0; attempt < 60 && current.status !== 'done'; attempt++) {
+      if (current.status === 'failed') {
+        toast.error(current.error || t('reports.download_failed'))
+        return
+      }
+      await sleep(1000)
+      current = (await api.get(`/reports/export/${job.id}/`)).data
+    }
+    if (current.status !== 'done') {
+      toast.error(t('reports.dl_timeout'))
+      return
+    }
+
+    const response = await api.get(current.download_url.replace('/api', ''), {
+      responseType: 'blob',
+    })
+    const filename = current.filename || fallbackName
+    saveBlob(response.data, filename)
+    toast.success(t('reports.dl_done', { name: filename }))
+  } catch {
+    toast.error(t('reports.download_failed'))
+  } finally {
+    busy.value = null
+  }
+}
+
 async function download(id, path, params, filename) {
   busy.value = id
   try {
     const response = await api.get(path, { params, responseType: 'blob' })
-    const url = URL.createObjectURL(response.data)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = filename
-    // Attached + delayed revoke: Safari/iOS can cancel the download if the
-    // link isn't in the DOM or the blob URL is freed straight away.
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    saveBlob(response.data, filename)
     toast.success(t('reports.dl_done', { name: filename }))
   } catch {
     toast.error(t('reports.download_failed'))
@@ -309,7 +353,8 @@ function reportFile(ext) {
   const { start, end } = range.value
   const span = start === end ? start : `${start}_${end}`
   const name = `${locale.value === 'ru' ? 'otchet' : 'hisobot'}_${span}.${ext}`
-  const params = { period: period.value, date: start, file: ext, lang: locale.value }
+  const params = { period: period.value, date: start, lang: locale.value }
+  if (ext === 'xlsx') return queuedExport(ext, params, name)
   return download(ext, '/reports/export/', params, name)
 }
 

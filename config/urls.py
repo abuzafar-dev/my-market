@@ -20,6 +20,7 @@ urlpatterns = [
     path("api/settings/", SettingsView.as_view(), name="settings"),
     path("api/", include("apps.catalog.urls")),
     path("api/", include("apps.sales.urls")),
+    path("api/", include("apps.notifications.urls")),
     path("api/", include("apps.debt.urls")),
     path("api/", include("apps.reports.urls")),
 ]

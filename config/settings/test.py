@@ -22,6 +22,7 @@ REST_FRAMEWORK = {
         "user": "100000/min",
         "login": "100000/min",
         "exports": "100000/min",
+        "reminders": "100000/min",
     },
 }
 
@@ -32,9 +33,31 @@ STORAGES = {
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 
+# Tasks run inline, in the calling process, so the suite needs no broker and
+# no worker. The task writes the same job states either way, so tests still
+# see the whole lifecycle.
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = False
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "my-market-test",
+    }
+}
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": ":memory:",
     }
 }
+
+# WhatsApp is always mocked in tests (see apps/notifications/testing.py);
+# whatever is in the developer's .env must never reach Meta from a test run.
+WHATSAPP_ACCESS_TOKEN = ""
+WHATSAPP_PHONE_NUMBER_ID = ""
+WHATSAPP_APP_SECRET = "test-app-secret"  # pragma: allowlist secret
+WHATSAPP_VERIFY_TOKEN = "test-verify-token"
+WHATSAPP_API_VERSION = ""
+WHATSAPP_API_BASE = "http://whatsapp.invalid"

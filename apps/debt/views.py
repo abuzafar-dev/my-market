@@ -11,6 +11,7 @@ from .serializers import (
     CustomerDetailSerializer,
     CustomerSerializer,
     DebtActionInputSerializer,
+    DebtInputSerializer,
 )
 from .services import add_debt, add_payment
 
@@ -36,7 +37,10 @@ class CustomerViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = Customer.objects.filter(shop=self.request.user.shop, is_active=True)
 
-        if self.action == "retrieve":
+        # debt/payment answer with the same detail payload, so their history
+        # needs the same newest-first order (without it PostgreSQL may return
+        # the lines in any order).
+        if self.action in ("retrieve", "debt", "payment"):
             queryset = queryset.prefetch_related(
                 Prefetch(
                     "entries",
@@ -64,7 +68,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def debt(self, request, pk=None):
         customer = self.get_object()
-        serializer = DebtActionInputSerializer(data=request.data)
+        serializer = DebtInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         add_debt(customer=customer, user=request.user, **serializer.validated_data)
         return Response(

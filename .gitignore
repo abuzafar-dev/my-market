@@ -1,5 +1,8 @@
 .venv/
 .env
+# any other env file (e.g. .env.staging) holds secrets too
+.env.*
+!.env.example
 CREDENTIALS.local.md
 adhoc.crt
 adhoc.key

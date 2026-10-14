@@ -7,6 +7,7 @@ import FieldLabel from '@/components/FieldLabel.vue'
 import Icon from '@/components/Icon.vue'
 import InfoHint from '@/components/InfoHint.vue'
 import LangSwitch from '@/components/LangSwitch.vue'
+import NotificationSettingsCard from '@/components/NotificationSettingsCard.vue'
 import PageTitle from '@/components/PageTitle.vue'
 import SectionCard from '@/components/SectionCard.vue'
 import { t } from '@/i18n'
@@ -159,12 +160,15 @@ async function logout() {
         </div>
       </SectionCard>
 
+      <!-- WhatsApp notifications (owner) -->
+      <NotificationSettingsCard v-if="isOwner" class="rise" style="--i: 3" />
+
       <!-- Logout -->
       <button
         type="button"
         :disabled="loggingOut"
         class="rise flex w-full items-center gap-3 rounded-2xl border border-[var(--color-danger)]/25 bg-[var(--color-danger-soft)] p-3 text-left text-[var(--color-danger)] transition active:scale-[0.99] disabled:opacity-50"
-        style="--i: 3"
+        style="--i: 4"
         @click="logout"
       >
         <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white">

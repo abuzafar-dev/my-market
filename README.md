@@ -58,7 +58,9 @@ It is a PWA, because the till is often a phone behind the counter:
   - `apps/reports` — for any day, week or month (`?period=&date=`): sales
     stats, per-day / per-hour breakdown, every product sold (qty, revenue,
     profit, receipts), a comparison with the previous period, the credit
-    (nasiya) picture, and the same period as Excel (4 sheets) or CSV.
+    (nasiya) picture, and the same period as Excel (4 sheets) or CSV. The
+    Excel file is built by a **Celery** worker, not in the request — see
+    below.
   - `apps/common` — shared response envelope, exception handling, the
     `IsOwner` permission class.
 - **Frontend** — Vue 3 + Pinia + Vite + Tailwind 4 (`frontend/`), a PWA
@@ -69,6 +71,13 @@ It is a PWA, because the till is often a phone behind the counter:
   full sidebar from `lg`; grids size themselves (`auto-fill`) and lists
   use container queries, so layout follows the space actually available.
   Pinch-zoom stays enabled and notch (safe-area) insets are respected.
+
+- **Background work** — Celery with Redis as broker and result store
+  (`config/celery.py`). Jobs: building the Excel report, and the WhatsApp
+  notifications (sending, the per-minute sweeper, debt reminders).
+- **Cache** — Redis in production, shared by every gunicorn worker, because the
+  login-lockout counters and rate limits are only meaningful if all of them see
+  the same numbers.
 
 Every API response is `{"data": ..., "error": ...}`; business logic
 lives in each app's `services.py`, not in views.
@@ -89,6 +98,13 @@ lives in each app's `services.py`, not in views.
 - **Debt totals** count only customers who owe (`debt_balance > 0`); a
   cancelled credit sale reverses its debt but is not counted as a
   repayment.
+- **Excel exports are a job, CSV is not.** A workbook has to be complete
+  before its first byte can be sent, so building it inside the request held a
+  gunicorn worker for the whole time — a few owners exporting a month at once
+  was enough to stop the shop selling. `POST /api/reports/export/` queues it
+  and returns a job to poll; the finished file is downloaded through a view
+  that checks the shop, never linked from MEDIA (which is served off disk with
+  no auth). CSV streams row by row and stays on the GET.
 - **The saved cart is re-checked**: the sale screen re-reads the products
   of a cart restored from the browser (`GET /api/products/?ids=...`),
   dropping archived ones and capping quantities at current stock.
@@ -148,6 +164,20 @@ DJANGO_SETTINGS_MODULE=config.settings.test python manage.py test
 
 Uses an in-memory SQLite database — no Postgres required.
 
+### Background worker
+
+The Excel export needs a worker and a Redis. In development:
+
+```bash
+docker run -d -p 6379:6379 redis:7-alpine
+.venv/bin/celery -A config worker -l info
+.venv/bin/celery -A config beat -l info     # file cleanup; WhatsApp sweeper + reminders
+```
+
+Without a worker the job stays `pending` and the SPA eventually times out; CSV
+export and everything else keep working. `docker compose up` starts Redis, the
+worker and beat alongside the app.
+
 ### Lint / format
 
 ```bash
@@ -186,6 +216,15 @@ HTTPS, first owner, backups, updates) is in [QOLLANMA.md](QOLLANMA.md).
 
 `scripts/export-clean.sh` produces a shareable archive via `git
 archive`, so gitignored secrets never end up in an ad-hoc export.
+
+## WhatsApp debt notifications
+
+Optional and off by default. Each shop can send its customers WhatsApp messages
+about debts, reminders and payments, and customers can ask for their balance.
+Messages go only to customers whose consent was recorded, and `STOP` always
+works. Sending runs through Celery and needs Meta credentials and approved
+templates. See [docs/WHATSAPP.md](docs/WHATSAPP.md) for the design, the setup,
+template submission, rollout and the manual test.
 
 ## Security
 

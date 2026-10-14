@@ -20,6 +20,7 @@ from rest_framework.throttling import UserRateThrottle
 
 from apps.catalog.models import Batch, Category, Product
 from apps.debt.models import Customer
+from apps.reports.models import ExportJob
 from apps.sales.models import Sale
 from apps.sales.services import CartLine, create_sale
 from apps.shops.models import Shop, ShopSettings, User
@@ -494,11 +495,22 @@ class ExportFormulaInjectionTests(TwoShopsTestCase):
             cart=[CartLine(product=product, qty=Decimal("1"))],
         )
 
-        month = self.client.get("/api/reports/export/", {"period": "month", "file": "xlsx"})
-        low = self.client.get("/api/reports/low-stock/export/")
+        # The period workbook is built by a Celery job (POST, then the file
+        # lands on the job row); on_commit never fires inside a TestCase
+        # transaction, hence captureOnCommitCallbacks.
+        with override_settings(MEDIA_ROOT=tempfile.mkdtemp()):
+            with self.captureOnCommitCallbacks(execute=True):
+                queued = self.client.post(
+                    "/api/reports/export/", {"period": "month"}, format="json"
+                )
+            self.assertEqual(queued.status_code, 202)
+            job = ExportJob.objects.get(pk=queued.data["id"])
+            self.assertEqual(job.status, ExportJob.Status.DONE)
+            month = job.file.read()
+        low = self.client.get("/api/reports/low-stock/export/").content
 
-        for response in (month, low):
-            workbook = load_workbook(BytesIO(response.content))
+        for content in (month, low):
+            workbook = load_workbook(BytesIO(content))
             for sheet in workbook:
                 for row in sheet.iter_rows():
                     for cell in row:
@@ -507,7 +519,7 @@ class ExportFormulaInjectionTests(TwoShopsTestCase):
                                 cell.value.startswith(("=", "+", "-", "@")),
                                 f"live formula in {sheet.title}!{cell.coordinate}: {cell.value}",
                             )
-        products_sheet = load_workbook(BytesIO(month.content))["Mahsulotlar bo'yicha"]
+        products_sheet = load_workbook(BytesIO(month))["Mahsulotlar bo'yicha"]
         self.assertEqual(products_sheet["A2"].value, "'" + self.EVIL)  # still readable as text
 
 

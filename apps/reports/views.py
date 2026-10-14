@@ -3,10 +3,12 @@
 from datetime import date
 from io import BytesIO
 
-from django.http import HttpResponse
+from django.db import transaction
+from django.http import FileResponse, Http404, HttpResponse
 from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.styles import Font
+from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -17,7 +19,9 @@ from apps.catalog.services import low_stock_products
 from apps.common.permissions import IsOwner
 from apps.shops.models import User
 
-from .exports import period_csv_response, period_xlsx_response, safe_row
+from .exports import period_csv_response, safe_row
+from .models import ExportJob
+from .serializers import ExportJobSerializer
 from .services import (
     dashboard,
     debt_summary,
@@ -30,8 +34,10 @@ from .services import (
     unsold_products,
     write_off_total,
 )
+from .tasks import build_period_export
 
 _VALID_PERIODS = {"day", "week", "month"}
+_XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 def _anchor(request) -> date | None:
@@ -96,14 +102,18 @@ class ReportsView(APIView):
 
 
 class ReportsExportView(APIView):
-    """GET /api/reports/export/?period=day|week|month&date=YYYY-MM-DD&file=xlsx|csv&lang=uz|ru
+    """CSV straight back; Excel as a background job.
 
-    The sales report for one period, as a file (not the JSON envelope, TZ v2
-    9.6). xlsx -> a workbook (summary, per-day, every sale, per-product);
-    csv -> the per-day table."""
+    GET  /api/reports/export/?period=&date=&lang=  -> the per-day table as CSV,
+    streamed row by row, done in milliseconds.
+
+    POST /api/reports/export/  -> queues the workbook and returns the job to
+    poll. The workbook has to be assembled in full before its first byte, so
+    building it here would hold a gunicorn worker for the whole time; a few
+    owners exporting a month at once was enough to stop the shop selling."""
 
     permission_classes = [IsAuthenticated, IsOwner]
-    # Building a workbook is heavy: keep one account from hammering it.
+    # Both paths are expensive enough to be worth a scope of their own.
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "exports"
 
@@ -112,14 +122,73 @@ class ReportsExportView(APIView):
         if period not in _VALID_PERIODS:
             period = "month"
         lang = "ru" if request.query_params.get("lang") == "ru" else "uz"
-        shop = request.user.shop
         start, end = period_bounds(period, _anchor(request))
-        if request.query_params.get("file") == "xlsx":
-            return period_xlsx_response(shop, period, start, end, lang)
-        return period_csv_response(shop, start, end, lang)
+        return period_csv_response(request.user.shop, start, end, lang)
+
+    def post(self, request):
+        period = request.data.get("period", "month")
+        if period not in _VALID_PERIODS:
+            period = "month"
+        lang = "ru" if request.data.get("lang") == "ru" else "uz"
+        anchor = request.data.get("date") or None
+        if anchor:
+            try:
+                date.fromisoformat(anchor)
+            except TypeError, ValueError:
+                raise ValidationError(
+                    {"date": "Sana YYYY-MM-DD ko'rinishida bo'lishi kerak."}
+                ) from None
+
+        job = ExportJob.objects.create(
+            shop=request.user.shop,
+            requested_by=request.user,
+            kind=ExportJob.Kind.PERIOD_XLSX,
+            params={"period": period, "date": anchor, "lang": lang},
+        )
+        # after_commit: the worker can pick the task up before this request's
+        # transaction has committed, and would then not find the row.
+        transaction.on_commit(lambda: build_period_export.delay(str(job.id)))
+        return Response(ExportJobSerializer(job).data, status=status.HTTP_202_ACCEPTED)
 
 
-_XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+class ExportJobView(APIView):
+    """GET /api/reports/export/<uuid>/ — what the client polls."""
+
+    permission_classes = [IsAuthenticated, IsOwner]
+
+    def get(self, request, job_id):
+        job = _own_job(request, job_id)
+        return Response(ExportJobSerializer(job).data)
+
+
+class ExportJobDownloadView(APIView):
+    """GET /api/reports/export/<uuid>/download/ — the finished file.
+
+    MEDIA is served off disk without auth, so the file is never linked
+    directly: this view is what checks the job belongs to the caller's shop.
+    """
+
+    permission_classes = [IsAuthenticated, IsOwner]
+
+    def get(self, request, job_id):
+        job = _own_job(request, job_id)
+        if not job.is_downloadable:
+            raise ValidationError({"detail": "Fayl hali tayyor emas."})
+        return FileResponse(
+            job.file.open("rb"),
+            as_attachment=True,
+            filename=job.filename or "hisobot.xlsx",
+            content_type=_XLSX_CONTENT_TYPE,
+        )
+
+
+def _own_job(request, job_id) -> ExportJob:
+    """A job from another shop must look missing, not forbidden — a 403 would
+    confirm the id exists."""
+    job = ExportJob.objects.filter(pk=job_id, shop=request.user.shop).first()
+    if job is None:
+        raise Http404
+    return job
 
 
 def _xlsx_response(filename: str, sheet_title: str, headers: list[str], rows) -> HttpResponse:

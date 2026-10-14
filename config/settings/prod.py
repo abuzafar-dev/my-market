@@ -13,14 +13,10 @@ ADMIN_ENABLED = config("ADMIN_ENABLED", cast=bool, default=False)
 # origin needs CORS access. Leave empty unless a separate front-end host is used.
 CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", cast=Csv(), default="")
 
-# Login attempt counters and rate limits must be shared by all gunicorn workers.
-# A file cache is process-safe and needs no extra service.
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
-        "LOCATION": config("CACHE_DIR", default="/tmp/my-market-cache"),
-    }
-}
+# The cache comes from base.py and is Redis: login-attempt counters and rate
+# limits have to be shared by every gunicorn worker, which a per-process cache
+# cannot do and a file cache only does slowly. Redis is already in the stack as
+# the Celery broker, so this costs nothing extra.
 
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv())
 

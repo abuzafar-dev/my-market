@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.common.limits import MAX_DEBT, MAX_NOTE
@@ -25,7 +26,16 @@ class DebtEntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = DebtEntry
         # `sale`: the receipt a debt came from, so the history can link to it.
-        fields = ["id", "amount", "entry_type", "note", "sale", "created_by_name", "created_at"]
+        fields = [
+            "id",
+            "amount",
+            "entry_type",
+            "note",
+            "due_date",
+            "sale",
+            "created_by_name",
+            "created_at",
+        ]
 
 
 class CustomerDetailSerializer(CustomerSerializer):
@@ -38,3 +48,14 @@ class CustomerDetailSerializer(CustomerSerializer):
 class DebtActionInputSerializer(serializers.Serializer):
     amount = serializers.IntegerField(min_value=1, max_value=MAX_DEBT)
     note = serializers.CharField(required=False, allow_blank=True, default="", max_length=MAX_NOTE)
+
+
+class DebtInputSerializer(DebtActionInputSerializer):
+    """A new debt may carry the date the shop expects it back (optional)."""
+
+    due_date = serializers.DateField(required=False, allow_null=True, default=None)
+
+    def validate_due_date(self, value):
+        if value is not None and value < timezone.localdate():
+            raise serializers.ValidationError("To'lov muddati o'tgan sana bo'lishi mumkin emas.")
+        return value
