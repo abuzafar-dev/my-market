@@ -153,10 +153,12 @@ def _filename(lang: str, start: date, end: date, ext: str) -> str:
     return f"{TEXT[lang]['file']}_{span}.{ext}"
 
 
-def _day_table(shop: Shop, start: date, end: date, lang: str) -> tuple[list[str], list[list], list]:
+def _day_table(
+    shop: Shop, period: str, start: date, end: date, lang: str
+) -> tuple[list[str], list[list], list]:
     """Header, body rows and the totals row of the per-day (per-hour) table."""
     text = TEXT[lang]
-    series = sales_series(shop, start, end)
+    series = sales_series(shop, period, start, end)
     is_hourly = series["kind"] == "hour"
 
     header = [text["hour"] if is_hourly else text["date"]]
@@ -185,8 +187,8 @@ def _day_table(shop: Shop, start: date, end: date, lang: str) -> tuple[list[str]
     return header, body, total_row
 
 
-def period_csv_response(shop: Shop, start: date, end: date, lang: str) -> HttpResponse:
-    header, body, total_row = _day_table(shop, start, end, lang)
+def period_csv_response(shop: Shop, period: str, start: date, end: date, lang: str) -> HttpResponse:
+    header, body, total_row = _day_table(shop, period, start, end, lang)
 
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="{_filename(lang, start, end, "csv")}"'
@@ -226,7 +228,7 @@ def period_xlsx_response(
     shop: Shop, period: str, start: date, end: date, lang: str
 ) -> HttpResponse:
     text = TEXT[lang]
-    header, body, total_row = _day_table(shop, start, end, lang)
+    header, body, total_row = _day_table(shop, period, start, end, lang)
     money_headers = {text[f] for f in (*_MONEY_FIELDS, "debt_paid", "debt_outstanding")}
 
     workbook = Workbook()
@@ -261,7 +263,7 @@ def period_xlsx_response(
     summary.column_dimensions["B"].width = 30
 
     # 2) Per day / per hour
-    kind_sheet = workbook.create_sheet(text["hours"] if start == end else text["days"])
+    kind_sheet = workbook.create_sheet(text["hours"] if period == "day" else text["days"])
     kind_sheet.append(header)
     for row in body:
         kind_sheet.append(row)

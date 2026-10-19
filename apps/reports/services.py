@@ -92,15 +92,16 @@ def _money_aggregates() -> dict:
 _ZERO_ROW = {"count": 0, "revenue": 0, "cash": 0, "card": 0, "debt": 0, "profit": 0}
 
 
-def sales_series(shop: Shop, start: date, end: date) -> dict:
+def sales_series(shop: Shop, period: str, start: date, end: date) -> dict:
     """How much was sold in each slice of the range.
 
-    several days -> one row per calendar day (days with no sales are included
-    as zeros, so the list is complete).
-    a single day -> one row per hour that had sales."""
+    week / month -> one row per calendar day (days with no sales are included
+    as zeros, so the list is complete) — even when the range is a single day,
+    as a week on its Monday or a month on its 1st.
+    day -> one row per hour that had sales."""
     sales = completed_sales(shop, start, end)
 
-    if start == end:
+    if period == "day":
         rows = (
             sales.annotate(slot=TruncHour("sold_at"))
             .values("slot")
