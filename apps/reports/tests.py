@@ -8,6 +8,7 @@ from openpyxl import load_workbook
 from rest_framework.test import APIClient
 
 from apps.catalog.models import Batch, Product
+from apps.reports.services import sales_series
 from apps.sales.models import Sale
 from apps.sales.services import CartLine, cancel_sale, create_sale
 from apps.shops.models import Shop, ShopSettings, User
@@ -168,6 +169,19 @@ class PeriodReportTests(ReportExportTests):
         first = date.fromisoformat(rows[0]["key"])
         self.assertEqual(first.weekday(), 0)
         self.assertEqual(len(rows), date.today().weekday() + 1)
+
+    def test_week_or_month_of_a_single_day_is_still_listed_by_day(self):
+        # A week on its Monday or a month on its 1st spans one day; the series
+        # must stay per-day (the screen and the "Kunlar" sheet expect dates),
+        # not switch to the per-hour view of the "day" period.
+        monday = date(2026, 10, 19)
+        for period in ("week", "month"):
+            with self.subTest(period=period):
+                series = sales_series(self.shop, period, monday, monday)
+                self.assertEqual(series["kind"], "day")
+                self.assertEqual([row["key"] for row in series["rows"]], [monday.isoformat()])
+
+        self.assertEqual(sales_series(self.shop, "day", monday, monday)["kind"], "hour")
 
     def test_day_series_is_by_hour_and_only_hours_with_sales(self):
         self.sell(self.make_product("Un", "50"), "1")
