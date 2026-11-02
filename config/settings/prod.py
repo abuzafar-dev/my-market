@@ -61,7 +61,7 @@ if config("BEHIND_PROXY", cast=bool, default=False):
 CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", cast=Csv(), default="")
 
 # The uptime check must answer over plain HTTP from inside the container.
-SECURE_REDIRECT_EXEMPT = [r"^healthz/$"]
+SECURE_REDIRECT_EXEMPT = [r"^healthz/$", r"^healthz/celery/$"]
 
 # --------------------------------------------------------------------------
 # TEMPORARY test mode: plain HTTP (no TLS) — e.g. reaching the server by IP

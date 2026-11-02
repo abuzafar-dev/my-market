@@ -1,4 +1,4 @@
-# Backup and restore
+# Backup, restore and monitoring
 
 The `backup` service in `docker-compose.yml` runs [`scripts/backup.sh`](../scripts/backup.sh)
 once when it starts and then every 24 hours. Each run writes two files to the
@@ -65,6 +65,22 @@ unless the third argument is `--yes-overwrite-production`.
 
 Everything sold between the dump and the failure is lost — that window is at
 most 24 hours (RPO 24 h).
+
+## Monitoring
+
+Point an external uptime monitor (UptimeRobot, Better Stack, a cron `curl` on
+another machine) at both health URLs, every 1–5 minutes:
+
+| URL | 200 means | 503 means |
+|---|---|---|
+| `/healthz/` | the web app is up and reaches the database | database unreachable |
+| `/healthz/celery/` | celery beat + broker + a worker ran the heartbeat in the last 180 s | `missing` / `stale` / `error`: Excel exports and WhatsApp reminders are not running |
+
+Both need no login and return no data. Inside Docker the `celery` worker has
+its own healthcheck (`celery inspect ping`), visible in `docker compose ps`.
+Errors themselves go to Sentry when `SENTRY_DSN` is set
+(`config/observability.py`); every log line carries the request's
+`[X-Request-ID]`.
 
 ## Tests
 

@@ -11,11 +11,12 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
-from apps.common.views import healthz
+from apps.common.views import celery_healthz, healthz
 from apps.shops.views import SettingsView
 
 urlpatterns = [
     path("healthz/", healthz, name="healthz"),
+    path("healthz/celery/", celery_healthz, name="healthz-celery"),
     path("api/auth/", include("apps.shops.urls")),
     path("api/settings/", SettingsView.as_view(), name="settings"),
     path("api/", include("apps.catalog.urls")),

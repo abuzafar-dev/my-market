@@ -238,6 +238,11 @@ CELERY_TIMEZONE = TIME_ZONE
 EXPORT_RETENTION_HOURS = config("EXPORT_RETENTION_HOURS", cast=int, default=24)
 
 CELERY_BEAT_SCHEDULE = {
+    # Liveness of beat + broker + worker, read by GET /healthz/celery/.
+    "beat-heartbeat": {
+        "task": "apps.common.tasks.beat_heartbeat",
+        "schedule": 60,
+    },
     "purge-expired-exports": {
         "task": "apps.reports.tasks.purge_expired_exports",
         "schedule": 60 * 60,  # hourly

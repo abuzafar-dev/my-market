@@ -92,6 +92,14 @@ services:
     # each report build holds a whole workbook in memory, so more processes
     # mostly means more RAM.
     command: ["celery", "-A", "config", "worker", "-l", "info", "--concurrency=2"]
+    # The worker answers a ping. (Beat is watched through GET /healthz/celery/,
+    # which an external uptime monitor polls — see docs/BACKUP.md.)
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME -t 10 | grep -q pong"]
+      interval: 60s
+      timeout: 20s
+      retries: 3
+      start_period: 30s
     depends_on:
       db:
         condition: service_healthy

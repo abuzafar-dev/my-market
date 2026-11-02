@@ -29,7 +29,7 @@ Bog'liq hujjat: [TZ.md](TZ.md) (§5 NFR, §8 ochiq savollar).
 - [x] **P1-2. Xatolar monitoringi (NFR-06)** — `sentry-sdk[django,celery]`, DSN `.env` dan; frontend uchun ham ixtiyoriy. Bo'sh DSN bo'lsa o'chiq.
 - [x] **P1-3. `media/` backup** — mahsulot rasmlari volume'da; backup'ga qo'shish.
 - [ ] **P1-4. Prod sozlamalarni tekshirish** — `DEBUG=False`, yangi `SECRET_KEY`, `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, HTTPS (`deploy/Caddyfile.example`). `manage.py check --deploy --settings=config.settings.prod`.
-- [ ] **P1-5. Celery worker + beat prod'da ishlayotganini kuzatish** — Excel eksporti va WhatsApp ular bo'lmasa jim to'xtaydi; healthcheck yoki Sentry cron monitor.
+- [x] **P1-5. Celery worker + beat prod'da ishlayotganini kuzatish** — Excel eksporti va WhatsApp ular bo'lmasa jim to'xtaydi; healthcheck yoki Sentry cron monitor.
 
 ## P2 — Sifat va ishonchlilik
 
@@ -57,3 +57,4 @@ Bog'liq hujjat: [TZ.md](TZ.md) (§5 NFR, §8 ochiq savollar).
 - [x] 2026-11-02 — P1-1/P1-3: `backup` compose servisi, `scripts/backup.sh` / `restore.sh`, testlar (`scripts/test_backup.sh`, CI), `docs/BACKUP.md`; lokal PostgreSQL'da dump→restore sinovdan o'tdi.
 - [x] 2026-11-02 — P1-2: Sentry (`config/observability.py`, `SENTRY_DSN` bo'sh bo'lsa o'chiq, `send_default_pii=False`).
 - [x] 2026-11-02 — P2-3: `X-Request-ID` middleware, log satrlarida `[request_id]`, Sentry tag.
+- [x] 2026-11-02 — P1-5: beat heartbeat + `GET /healthz/celery/` (nginx orqali), celery worker healthcheck.
