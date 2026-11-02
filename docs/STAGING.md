@@ -324,6 +324,7 @@ the day after the due date for the overdue reminder.
 * Production follows the same A → D order with **plain** `docker compose`
   and production's `.env` (project `my-market`, port 8080) — never the
   staging wrapper or `.env.staging` — with its own backup taken **before**
-  step A5 (migrations run on start).
+  step A5 (migrations run on start): `docker compose exec backup /scripts/backup.sh`
+  ([BACKUP.md](BACKUP.md)).
 * Rollback of WhatsApp only (staging): empty `WHATSAPP_ACCESS_TOKEN` in `.env.staging`, then
   `scripts/staging-compose.sh up -d --force-recreate backend celery celery-beat`.

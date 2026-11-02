@@ -41,6 +41,9 @@ jobs:
       - name: Test
         run: python manage.py test
 
+      - name: Backup scripts test
+        run: bash scripts/test_backup.sh
+
   frontend:
     runs-on: ubuntu-latest
     defaults:

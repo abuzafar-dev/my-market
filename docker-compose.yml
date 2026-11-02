@@ -145,6 +145,36 @@ services:
     ports:
       - "${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8080}:80"
 
+  # Daily backup of the database and the product images (scripts/backup.sh):
+  # once at start-up, then every 24 h; copies older than BACKUP_KEEP_DAYS are
+  # rotated out. Same postgres major as `db`, so pg_dump matches the server.
+  # The files live in the project-prefixed `backups` volume — copy them off the
+  # server regularly (docs/STAGING.md "Backup va tiklash").
+  backup:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-my_market_user}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      PGDATABASE: ${POSTGRES_DB:-my_market_db}
+      BACKUP_DIR: /backups
+      MEDIA_DIR: /media
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    command:
+      - sh
+      - -c
+      - while true; do /scripts/backup.sh || echo 'BACKUP FAILED' >&2; sleep 86400; done
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - backups:/backups
+      - media:/media:ro
+      - ./scripts:/scripts:ro
+
 volumes:
   postgres_data:
   media:
+  backups:

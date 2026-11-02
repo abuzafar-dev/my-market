@@ -6,7 +6,8 @@ refresh cookie. Backend is Uzbek-facing (verbose names, error strings);
 code and docs are in English.
 
 For day-to-day usage (login, admin panel walkthrough, adding products,
-common issues) see [QOLLANMA.md](QOLLANMA.md).
+common issues) see [QOLLANMA.md](QOLLANMA.md). Backups and restore:
+[docs/BACKUP.md](docs/BACKUP.md).
 
 ## Screens
 
