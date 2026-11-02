@@ -38,7 +38,7 @@ Bog'liq hujjat: [TZ.md](TZ.md) (§5 NFR, §8 ochiq savollar).
 - [x] **P2-3. Strukturalangan log + `request_id`** (NFR-06 qolgan qismi).
 - [x] **P2-4. Latency o'lchovi** (NFR-02) — sotuv va hisobot endpointlari uchun p95; seed bilan 10k sotuvda sinash.
 - [x] **P2-5. Kalendarga bog'liq testlarni qidirish** — `date.today()` ishlatadigan boshqa testlar ham ma'lum kunlarda yiqilishi mumkin (dushanba xatosi shunday topildi). `timezone.localdate` ni patch qilish.
-- [ ] **P2-6. Dependabot / `pip-audit`** — CI'ga zaiflik tekshiruvi.
+- [x] **P2-6. Dependabot / `pip-audit`** — CI'ga zaiflik tekshiruvi.
 
 ## P3 — Keyingi versiya (TZ §8 ochiq savollariga bog'liq)
 
@@ -61,3 +61,4 @@ Bog'liq hujjat: [TZ.md](TZ.md) (§5 NFR, §8 ochiq savollar).
 - [x] 2026-11-02 — P2-5: `scripts/run_tests_on_day.py` (time-machine) — CI testlarni dushanba, 1-sana, yil boshi, 29-fevral va Toshkent kechasida ham ishlatadi; testlarda `date.today()` → `timezone.localdate()`.
 - [x] 2026-11-02 — P2-4: hisobot, dashboard, sotuvlar, mahsulotlar, mijozlar uchun SQL so'rovlar soni ma'lumot hajmiga bog'liq emasligi testi (N+1 qo'riqchisi; mutatsiya bilan tekshirildi). p95 o'lchovi prod/staging'da qoladi.
 - [x] 2026-11-02 — P2-1: Vitest (24 test: savat, shtrix-kod, qoldiq darajasi), CI'da `npm test`.
+- [x] 2026-11-02 — P2-6: `pip-audit` 44 ta zaiflik topdi → Pillow 13.0.0, DRF 3.18.2, PyJWT 2.15.0 (0 qoldi); CI'da pip-audit + npm audit, `.github/dependabot.yml`.

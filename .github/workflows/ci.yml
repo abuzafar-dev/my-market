@@ -35,6 +35,9 @@ jobs:
       - name: Format check (ruff)
         run: ruff format --check .
 
+      - name: Known vulnerabilities (pip-audit)
+        run: pip-audit -r requirements.txt
+
       - name: Missing migrations check
         run: python manage.py makemigrations --check --dry-run
 
@@ -75,6 +78,9 @@ jobs:
 
       - name: Unit tests (Vitest)
         run: npm test
+
+      - name: Known vulnerabilities (npm audit, runtime deps)
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Build
         run: npm run build
