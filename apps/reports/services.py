@@ -92,15 +92,19 @@ def _money_aggregates() -> dict:
 _ZERO_ROW = {"count": 0, "revenue": 0, "cash": 0, "card": 0, "debt": 0, "profit": 0}
 
 
-def sales_series(shop: Shop, start: date, end: date) -> dict:
+def sales_series(shop: Shop, start: date, end: date, *, hourly: bool) -> dict:
     """How much was sold in each slice of the range.
 
-    several days -> one row per calendar day (days with no sales are included
+    hourly=False -> one row per calendar day (days with no sales are included
     as zeros, so the list is complete).
-    a single day -> one row per hour that had sales."""
+    hourly=True  -> one row per hour that had sales.
+
+    The caller decides from the *period*, not from start == end: on a Monday
+    the week so far, and on the 1st the month so far, are one day long too,
+    yet they must still come back per day (the SPA labels the tab by period)."""
     sales = completed_sales(shop, start, end)
 
-    if start == end:
+    if hourly:
         rows = (
             sales.annotate(slot=TruncHour("sold_at"))
             .values("slot")

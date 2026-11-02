@@ -2,6 +2,7 @@ import tempfile
 from datetime import date
 from decimal import Decimal
 from io import BytesIO
+from unittest.mock import patch
 from uuid import uuid4
 
 from django.test import TestCase, override_settings
@@ -187,6 +188,20 @@ class PeriodReportTests(ReportExportTests):
         first = date.fromisoformat(rows[0]["key"])
         self.assertEqual(first.weekday(), 0)
         self.assertEqual(len(rows), date.today().weekday() + 1)
+
+    def test_week_and_month_stay_per_day_when_only_one_day_has_passed(self):
+        # On a Monday the week so far, and on the 1st the month so far, are a
+        # single day — they must still come back per day, not per hour.
+        for period, today in (("week", date(2026, 11, 2)), ("month", date(2026, 11, 1))):
+            with (
+                self.subTest(period=period),
+                patch("django.utils.timezone.localdate", return_value=today),
+            ):
+                series = self.client.get("/api/reports/", {"period": period}).json()["data"][
+                    "series"
+                ]
+                self.assertEqual(series["kind"], "day")
+                self.assertEqual([row["key"] for row in series["rows"]], [today.isoformat()])
 
     def test_day_series_is_by_hour_and_only_hours_with_sales(self):
         self.sell(self.make_product("Un", "50"), "1")

@@ -92,7 +92,7 @@ class ReportsView(APIView):
                     "range": {"start": prev_start.isoformat(), "end": prev_end.isoformat()},
                     **totals_between(shop, prev_start, prev_end),
                 },
-                "series": sales_series(shop, start, end),
+                "series": sales_series(shop, start, end, hourly=period == "day"),
                 "stats": sales_stats(shop, start, end),
                 "products": sold_products(shop, start, end),
                 "debt": debt_summary(shop, start, end),
@@ -123,7 +123,7 @@ class ReportsExportView(APIView):
             period = "month"
         lang = "ru" if request.query_params.get("lang") == "ru" else "uz"
         start, end = period_bounds(period, _anchor(request))
-        return period_csv_response(request.user.shop, start, end, lang)
+        return period_csv_response(request.user.shop, period, start, end, lang)
 
     def post(self, request):
         period = request.data.get("period", "month")
