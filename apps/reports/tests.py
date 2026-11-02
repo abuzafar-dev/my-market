@@ -264,6 +264,22 @@ class PeriodReportTests(ReportExportTests):
         self.assertTrue(lines[0].startswith("Sana;Hafta kuni;Sotuvlar soni"))
         self.assertTrue(lines[-1].startswith("JAMI;;1;2400"))
 
+    def test_exports_stay_per_day_when_the_week_or_month_is_one_day_old(self):
+        # The Monday / 1st case for the files, not just the JSON series: CSV
+        # header and Excel sheet must be the per-day ones.
+        for period, today in (("week", date(2026, 11, 2)), ("month", date(2026, 11, 1))):
+            with (
+                self.subTest(period=period),
+                patch("django.utils.timezone.localdate", return_value=today),
+            ):
+                csv = self.client.get("/api/reports/export/", {"period": period, "file": "csv"})
+                header = csv.content.decode("utf-8").lstrip("\ufeff").splitlines()[0]
+                self.assertTrue(header.startswith("Sana;Hafta kuni;"), header)
+
+                job = self.xlsx_bytes(period=period, lang="uz")
+                sheets = load_workbook(BytesIO(job.file.read())).sheetnames
+                self.assertIn("Kunlar bo'yicha", sheets)
+
     def test_export_is_owner_only(self):
         seller = APIClient()
         seller.force_authenticate(self.seller)
