@@ -2,7 +2,7 @@
 
 from decouple import Csv, config
 
-from config.observability import init_sentry
+from config.observability import init_sentry, parse_sample_rate
 
 from .base import *  # noqa: F403
 
@@ -82,5 +82,5 @@ if config("ALLOW_INSECURE_HTTP", cast=bool, default=False):
 init_sentry(
     config("SENTRY_DSN", default=""),
     environment=config("SENTRY_ENVIRONMENT", default="production"),
-    traces_sample_rate=config("SENTRY_TRACES_SAMPLE_RATE", cast=float, default=0.0),
+    traces_sample_rate=parse_sample_rate(config("SENTRY_TRACES_SAMPLE_RATE", default="")),
 )
