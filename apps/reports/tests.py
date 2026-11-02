@@ -433,3 +433,44 @@ class PeriodBoundsTests(TestCase):
         today = date(2026, 9, 24)
         self.assertEqual(self.bounds("month", today, today), (date(2026, 9, 1), today))
         self.assertEqual(self.bounds("week", today, today), (date(2026, 9, 21), today))
+
+
+class QueryCountTests(ReportExportTests):
+    """The number of SQL queries behind the busiest screens must not grow with
+    the data — an N+1 (one query per product / sale) only shows once a real
+    shop has a month of sales, as a slow page."""
+
+    ENDPOINTS = [
+        ("/api/reports/", {"period": "month"}),
+        ("/api/dashboard/", {}),
+        ("/api/sales/", {}),
+        ("/api/products/", {}),
+        ("/api/customers/", {}),
+    ]
+
+    def fill(self, products):
+        from apps.debt.models import Customer
+
+        for i in range(products):
+            product = self.make_product(f"Mahsulot {i}", "100")
+            self.sell(product, "1")
+            self.sell(product, "2")
+            Customer.objects.create(shop=self.shop, full_name=f"Mijoz {i}", debt_balance=1000 * i)
+
+    def queries(self, path, params):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        with CaptureQueriesContext(connection) as ctx:
+            response = self.client.get(path, params)
+        self.assertEqual(response.status_code, 200, path)
+        return len(ctx)
+
+    def test_query_count_does_not_grow_with_data(self):
+        self.fill(3)
+        small = {path: self.queries(path, params) for path, params in self.ENDPOINTS}
+
+        self.fill(12)  # 15 products, 30 sales, 15 customers
+        big = {path: self.queries(path, params) for path, params in self.ENDPOINTS}
+
+        self.assertEqual(big, small)
