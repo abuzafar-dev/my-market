@@ -69,3 +69,11 @@ class CeleryHealthTests(TestCase):
 
         self.assertEqual(entry["task"], "apps.common.tasks.beat_heartbeat")
         self.assertEqual(entry["schedule"], 60)
+
+    def test_queued_heartbeats_expire(self):
+        # After a worker outage a backlog of old heartbeats would keep the key
+        # fresh even though beat itself has died; each one is only valid for
+        # its own minute.
+        entry = settings.CELERY_BEAT_SCHEDULE["beat-heartbeat"]
+
+        self.assertEqual(entry["options"]["expires"], 60)

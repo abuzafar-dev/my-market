@@ -242,6 +242,9 @@ CELERY_BEAT_SCHEDULE = {
     "beat-heartbeat": {
         "task": "apps.common.tasks.beat_heartbeat",
         "schedule": 60,
+        # A heartbeat not run within its minute is dropped, so a backlog left
+        # by a worker outage cannot keep the key fresh after beat has died.
+        "options": {"expires": 60},
     },
     "purge-expired-exports": {
         "task": "apps.reports.tasks.purge_expired_exports",
