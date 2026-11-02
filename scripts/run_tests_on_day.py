@@ -1,11 +1,13 @@
 """Run the test suite as if today were the given day (Asia/Tashkent noon).
 
     .venv/bin/python scripts/run_tests_on_day.py 2026-11-02 apps.reports apps.sales
-    TZ=UTC .venv/bin/python scripts/run_tests_on_day.py 2026-11-02 --at 02:00 apps.reports
+    .venv/bin/python scripts/run_tests_on_day.py 2026-11-03 --at 02:00 apps.reports
 
-``--at HH:MM`` (Tashkent time, default 12:00) covers the night: with the
-server on UTC, 00:00–05:00 in Tashkent is still "yesterday" for date.today(),
-so only timezone.localdate() gives the shop's day.
+``--at HH:MM`` (Tashkent time, default 12:00) covers the night: 00:00–05:00
+in Tashkent is still the previous day in UTC, the zone aware datetimes are
+stored and compared in. (A ``TZ=UTC`` prefix would change nothing:
+django.setup() sets the process zone to TIME_ZONE, so date.today() inside
+Django is always the Tashkent date.)
 
 The whole process clock is moved (time-machine, dev-only), starting at noon
 in Tashkent and ticking on — so model defaults bound at import time
