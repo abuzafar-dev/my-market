@@ -35,7 +35,7 @@ Bog'liq hujjat: [TZ.md](TZ.md) (§5 NFR, §8 ochiq savollar).
 
 - [ ] **P2-1. Frontend unit testlar** — Vitest + Vue Test Utils: savat (`stores`), to'lov/qaytim hisobi, savatni qayta tekshirish (E-03). CI'ga `npm test` qo'shish.
 - [ ] **P2-2. E2E smoke test** — Playwright: kirish → sotuv → chek → hisobot.
-- [ ] **P2-3. Strukturalangan log + `request_id`** (NFR-06 qolgan qismi).
+- [x] **P2-3. Strukturalangan log + `request_id`** (NFR-06 qolgan qismi).
 - [ ] **P2-4. Latency o'lchovi** (NFR-02) — sotuv va hisobot endpointlari uchun p95; seed bilan 10k sotuvda sinash.
 - [ ] **P2-5. Kalendarga bog'liq testlarni qidirish** — `date.today()` ishlatadigan boshqa testlar ham ma'lum kunlarda yiqilishi mumkin (dushanba xatosi shunday topildi). `timezone.localdate` ni patch qilish.
 - [ ] **P2-6. Dependabot / `pip-audit`** — CI'ga zaiflik tekshiruvi.
@@ -56,3 +56,4 @@ Bog'liq hujjat: [TZ.md](TZ.md) (§5 NFR, §8 ochiq savollar).
 - [x] 2026-11-02 — P0-1: `config/urls.py` izohi qaytarildi; P0-2: `npm audit fix` (prod: 0 zaiflik); P0-3: commitlar.
 - [x] 2026-11-02 — P1-1/P1-3: `backup` compose servisi, `scripts/backup.sh` / `restore.sh`, testlar (`scripts/test_backup.sh`, CI), `docs/BACKUP.md`; lokal PostgreSQL'da dump→restore sinovdan o'tdi.
 - [x] 2026-11-02 — P1-2: Sentry (`config/observability.py`, `SENTRY_DSN` bo'sh bo'lsa o'chiq, `send_default_pii=False`).
+- [x] 2026-11-02 — P2-3: `X-Request-ID` middleware, log satrlarida `[request_id]`, Sentry tag.

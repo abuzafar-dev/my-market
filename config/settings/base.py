@@ -41,6 +41,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # First, so every later middleware and view logs with the request ID.
+    "apps.common.middleware.RequestIdMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -303,11 +305,18 @@ LOG_LEVEL = config("LOG_LEVEL", default="INFO")
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    # [request_id] ties a line to one HTTP request (X-Request-ID header,
+    # apps/common/middleware.py); "-" outside a request (Celery, commands).
+    "filters": {"request_id": {"()": "apps.common.logging.RequestIdFilter"}},
     "formatters": {
-        "standard": {"format": "%(asctime)s %(levelname)s %(name)s: %(message)s"},
+        "standard": {"format": "%(asctime)s %(levelname)s %(name)s [%(request_id)s]: %(message)s"},
     },
     "handlers": {
-        "console": {"class": "logging.StreamHandler", "formatter": "standard"},
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+            "filters": ["request_id"],
+        },
     },
     "root": {"handlers": ["console"], "level": "WARNING"},
     "loggers": {
@@ -323,6 +332,8 @@ LOGGING = {
 # CORS — only the separately hosted Vue SPA is allowed to call this API
 # --------------------------------------------------------------------------
 CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", cast=Csv(), default="http://localhost:5173")
+# The SPA may read the request ID, e.g. to show it next to an error message.
+CORS_EXPOSE_HEADERS = ["X-Request-ID"]
 
 # --------------------------------------------------------------------------
 # Optional surfaces (off in production unless asked for)
