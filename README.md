@@ -134,6 +134,8 @@ Required env vars (see `.env.example`):
 | `CORS_ALLOWED_ORIGINS` | Comma-separated origins allowed to call the API (your frontend's URL). |
 | `SECURE_SSL_REDIRECT` | Prod only, default `true`. Set `false` only for a bare `docker compose up` smoke test with no TLS-terminating proxy in front. |
 | `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | Only read by `docker-compose.yml`'s `db` service and the backend's container `DATABASE_URL` override — unrelated to the `DATABASE_URL` above, which is for this host-based workflow. |
+| `BACKUP_KEEP_DAYS` | Docker only: days of daily backups kept by the `backup` service (default 14). See [docs/BACKUP.md](docs/BACKUP.md). |
+| `SENTRY_DSN` / `SENTRY_ENVIRONMENT` / `SENTRY_TRACES_SAMPLE_RATE` | Prod only, optional: error reporting. Empty DSN = off; no personal data is sent. |
 
 Camera/barcode-scanner APIs are secure-context-only, so testing them
 from a phone over the LAN needs HTTPS even in dev — see

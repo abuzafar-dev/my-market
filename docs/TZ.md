@@ -197,11 +197,11 @@ flowchart LR
 | NFR-02 | Latency | Sotuv va hisobot so'rov ichida og'ir ish qilmaydi (Excel — Celery'da) | ✅ (o'lchov yo'q) |
 | NFR-03 | Mavjudlik | `GET /healthz/` healthcheck; Docker restart siyosati | ✅ / SLA belgilanmagan |
 | NFR-04 | Xavfsizlik | HTTPS majburiy, HSTS, CSP, httpOnly + SameSite cookie, login blok, kirish ma'lumotlariga yuqori chegaralar (`apps/common/limits.py`), multi-tenant izolyatsiya testlari | ✅ |
-| NFR-05 | Backup | Kunlik `pg_dump`, 14 kun saqlash | ❌ avtomatlashtirilmagan |
-| NFR-06 | Kuzatuv | Strukturalangan log, xatolar monitoringi (Sentry) | ⚠️ log bor, Sentry yo'q |
+| NFR-05 | Backup | Kunlik `pg_dump` + `media/`, 14 kun saqlash, RPO 24 soat; oylik tiklash mashqi | ✅ `backup` servisi, `docs/BACKUP.md` (server tashqarisiga nusxa — operator vazifasi) |
+| NFR-06 | Kuzatuv | Log satrida `[request_id]`, xatolar monitoringi (Sentry), `/healthz/` va `/healthz/celery/` | ✅ Sentry `SENTRY_DSN` bilan yoqiladi |
 | NFR-07 | Lokalizatsiya | O'zbek (lotin) va rus, ish paytida almashtiriladi | ✅ |
 | NFR-08 | Moslashuvchanlik | 320px telefondan keng monitorgacha, PWA | ✅ |
-| NFR-09 | Sifat | CI: ruff, format, migratsiya tekshiruvi, backend testlar, frontend lint + build | ✅ (frontend unit testlar yo'q) |
+| NFR-09 | Sifat | CI: ruff, format, migratsiya, backend testlar (chekka sanalarda ham), backup skript testlari, `pip-audit`, Vitest, `npm audit`, build; dependabot | ✅ |
 
 ---
 
@@ -227,14 +227,14 @@ flowchart LR
 - A-03: Do'konlarni xizmat ko'rsatuvchi (superadmin) qo'lda ochadi.
 
 ## 8. Ochiq savollar
-- Q-01: Backup qayerga va kim tomonidan olinadi (server cron, bulut)?
-- Q-02: Xatolar monitoringi (Sentry yoki boshqa) kerakmi?
+- Q-01: Backup server tashqarisiga qayerga ko'chiriladi (boshqa server, bulut)? — server ichidagi kunlik backup tayyor.
+- Q-02: ~~Xatolar monitoringi kerakmi?~~ — Sentry qo'shildi; DSN (hisob) kim ochadi?
 - Q-03: Internetsiz to'liq offline sotuv (keyin sinxronlash) kerakmi, yoki "telefondan ishlash" yetarlimi?
 - Q-04: Fiskal kassa (OFD) talab qilinadimi?
 
 ---
 
-## 9. Bajarilish holati (2026-11-02)
+## 9. Bajarilish holati (2026-11-02, yangilangan)
 
 | Modul | FR | Holat |
 |---|---|---|
@@ -244,4 +244,4 @@ flowchart LR
 | Nasiya | FR-10 | ✅ |
 | Hisobotlar, eksport | FR-11…13 | ✅ |
 | WhatsApp | FR-14…16 | ✅ kod va testlar tayyor; ishlashi uchun Meta tokeni va tasdiqlangan shablonlar kerak |
-| Backup, monitoring | NFR-05, NFR-06 | ❌ / ⚠️ |
+| Backup, monitoring | NFR-05, NFR-06 | ✅ (staging'da jonli sinov kutilmoqda) |

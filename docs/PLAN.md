@@ -7,12 +7,15 @@ Bog'liq hujjat: [TZ.md](TZ.md) (§5 NFR, §8 ochiq savollar).
 
 | Tekshiruv | Natija |
 |---|---|
-| Backend testlar (`make test`) | ✅ 424 ta, hammasi o'tdi (9 skip) |
-| `ruff check .` | ✅ toza |
-| `ruff format --check .` | ❌ `config/urls.py` (1 fayl) |
+| Backend testlar (`make test`) | ✅ 450 ta, hammasi o'tdi (9 skip) |
+| Chekka sanalar (`scripts/run_tests_on_day.py`) | ✅ dushanba, 1-sana, yil boshi, 29-fevral, Toshkent kechasi |
+| Backup skript testlari | ✅ 15/15 |
+| `ruff check .` / `ruff format --check .` | ✅ toza |
 | `makemigrations --check` | ✅ o'zgarish yo'q |
-| Frontend `npm run lint` / `build` | ✅ |
-| `npm audit --omit=dev` | ❌ 3 ta high: `vite`, `follow-redirects`, `source-map-js` |
+| `pip-audit -r requirements.txt` | ✅ 0 zaiflik |
+| Frontend `npm run lint` / `npm test` / `build` | ✅ (Vitest 24/24) |
+| `npm audit --omit=dev` | ✅ 0 zaiflik |
+| `manage.py check --deploy` (prod) | ✅ xavfsizlik ogohlantirishi yo'q (faqat drf_spectacular schema ogohlantirishlari) |
 
 ---
 
@@ -28,7 +31,7 @@ Bog'liq hujjat: [TZ.md](TZ.md) (§5 NFR, §8 ochiq savollar).
 - [x] **P1-1. Avtomatik backup (NFR-05)** — kunlik `pg_dump` (cron yoki compose'da alohida servis), 14 kun saqlash, server tashqarisiga nusxa. **Tiklashni sinab ko'rish** (`pg_restore` boshqa bazaga) va `docs/STAGING.md` ga yozish.
 - [x] **P1-2. Xatolar monitoringi (NFR-06)** — `sentry-sdk[django,celery]`, DSN `.env` dan; frontend uchun ham ixtiyoriy. Bo'sh DSN bo'lsa o'chiq.
 - [x] **P1-3. `media/` backup** — mahsulot rasmlari volume'da; backup'ga qo'shish.
-- [ ] **P1-4. Prod sozlamalarni tekshirish** — `DEBUG=False`, yangi `SECRET_KEY`, `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, HTTPS (`deploy/Caddyfile.example`). `manage.py check --deploy --settings=config.settings.prod`.
+- [x] **P1-4. Prod sozlamalarni tekshirish** — `DEBUG=False`, yangi `SECRET_KEY`, `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, HTTPS (`deploy/Caddyfile.example`). `manage.py check --deploy --settings=config.settings.prod`.
 - [x] **P1-5. Celery worker + beat prod'da ishlayotganini kuzatish** — Excel eksporti va WhatsApp ular bo'lmasa jim to'xtaydi; healthcheck yoki Sentry cron monitor.
 
 ## P2 — Sifat va ishonchlilik
@@ -62,3 +65,4 @@ Bog'liq hujjat: [TZ.md](TZ.md) (§5 NFR, §8 ochiq savollar).
 - [x] 2026-11-02 — P2-4: hisobot, dashboard, sotuvlar, mahsulotlar, mijozlar uchun SQL so'rovlar soni ma'lumot hajmiga bog'liq emasligi testi (N+1 qo'riqchisi; mutatsiya bilan tekshirildi). p95 o'lchovi prod/staging'da qoladi.
 - [x] 2026-11-02 — P2-1: Vitest (24 test: savat, shtrix-kod, qoldiq darajasi), CI'da `npm test`.
 - [x] 2026-11-02 — P2-6: `pip-audit` 44 ta zaiflik topdi → Pillow 13.0.0, DRF 3.18.2, PyJWT 2.15.0 (0 qoldi); CI'da pip-audit + npm audit, `.github/dependabot.yml`.
+- [x] 2026-11-02 — P1-4: `check --deploy` toza (xavfsizlik); README va TZ holati yangilandi. **Qoldi:** staging'da `docker compose up` bilan jonli sinov (bu mashinada Docker daemon ishlamaydi), P0-4 push/PR.
