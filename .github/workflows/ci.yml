@@ -41,6 +41,15 @@ jobs:
       - name: Test
         run: python manage.py test
 
+      - name: Date-sensitive tests on edge days
+        # Monday, the 1st, New Year, 29 Feb (week/month/year = one day), and a
+        # Tashkent night on a UTC clock. See scripts/run_tests_on_day.py.
+        run: |
+          for day in 2026-11-02 2026-11-01 2027-01-01 2028-02-29; do
+            python scripts/run_tests_on_day.py "$day" apps.reports apps.sales
+          done
+          TZ=UTC python scripts/run_tests_on_day.py 2026-11-03 --at 02:00 apps.reports apps.sales
+
       - name: Backup scripts test
         run: bash scripts/test_backup.sh
 

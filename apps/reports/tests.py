@@ -6,6 +6,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from django.test import TestCase, override_settings
+from django.utils import timezone
 from openpyxl import load_workbook
 from rest_framework.test import APIClient
 
@@ -173,21 +174,21 @@ class PeriodReportTests(ReportExportTests):
 
         rows = data["series"]["rows"]
         self.assertEqual(data["series"]["kind"], "day")
-        self.assertEqual(len(rows), date.today().day)  # 1st .. today, zeros included
-        self.assertEqual(rows[0]["key"], date.today().replace(day=1).isoformat())
-        self.assertEqual(rows[-1]["key"], date.today().isoformat())
+        self.assertEqual(len(rows), timezone.localdate().day)  # 1st .. today, zeros included
+        self.assertEqual(rows[0]["key"], timezone.localdate().replace(day=1).isoformat())
+        self.assertEqual(rows[-1]["key"], timezone.localdate().isoformat())
         self.assertEqual(
             (rows[-1]["count"], rows[-1]["revenue"], rows[-1]["profit"]), (1, 2400, 400)
         )
         self.assertEqual(sum(row["revenue"] for row in rows), data["stats"]["revenue"])
-        self.assertEqual(data["range"]["end"], date.today().isoformat())
+        self.assertEqual(data["range"]["end"], timezone.localdate().isoformat())
 
     def test_week_series_starts_on_monday(self):
         rows = self.client.get("/api/reports/", {"period": "week"}).json()["data"]["series"]["rows"]
 
         first = date.fromisoformat(rows[0]["key"])
         self.assertEqual(first.weekday(), 0)
-        self.assertEqual(len(rows), date.today().weekday() + 1)
+        self.assertEqual(len(rows), timezone.localdate().weekday() + 1)
 
     def test_week_and_month_stay_per_day_when_only_one_day_has_passed(self):
         # On a Monday the week so far, and on the 1st the month so far, are a

@@ -11,3 +11,6 @@ pre-commit==4.6.2
 detect-secrets==1.5.0
 ruff==0.16.8
 pip-audit==2.10.1   # known-vulnerability scan: pip-audit -r requirements.txt
+
+# Moves the clock for scripts/run_tests_on_day.py (edge-day test runs in CI)
+time-machine==3.6.0

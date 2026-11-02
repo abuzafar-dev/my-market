@@ -4,6 +4,7 @@ from decimal import Decimal
 from uuid import uuid4
 
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.catalog.models import Batch, Product
@@ -196,11 +197,10 @@ class SaleListFilterTests(SaleApiTestCase):
         self.assertIn("date", response.json()["error"]["fields"])
 
     def test_filtering_by_todays_date_finds_todays_sale(self):
-        from datetime import date
 
         self.checkout()
 
-        response = self.api.get(f"/api/sales/?date={date.today().isoformat()}")
+        response = self.api.get(f"/api/sales/?date={timezone.localdate().isoformat()}")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.json()["data"]["results"]), 1)

@@ -37,7 +37,7 @@ Bog'liq hujjat: [TZ.md](TZ.md) (§5 NFR, §8 ochiq savollar).
 - [ ] **P2-2. E2E smoke test** — Playwright: kirish → sotuv → chek → hisobot.
 - [x] **P2-3. Strukturalangan log + `request_id`** (NFR-06 qolgan qismi).
 - [ ] **P2-4. Latency o'lchovi** (NFR-02) — sotuv va hisobot endpointlari uchun p95; seed bilan 10k sotuvda sinash.
-- [ ] **P2-5. Kalendarga bog'liq testlarni qidirish** — `date.today()` ishlatadigan boshqa testlar ham ma'lum kunlarda yiqilishi mumkin (dushanba xatosi shunday topildi). `timezone.localdate` ni patch qilish.
+- [x] **P2-5. Kalendarga bog'liq testlarni qidirish** — `date.today()` ishlatadigan boshqa testlar ham ma'lum kunlarda yiqilishi mumkin (dushanba xatosi shunday topildi). `timezone.localdate` ni patch qilish.
 - [ ] **P2-6. Dependabot / `pip-audit`** — CI'ga zaiflik tekshiruvi.
 
 ## P3 — Keyingi versiya (TZ §8 ochiq savollariga bog'liq)
@@ -58,3 +58,4 @@ Bog'liq hujjat: [TZ.md](TZ.md) (§5 NFR, §8 ochiq savollar).
 - [x] 2026-11-02 — P1-2: Sentry (`config/observability.py`, `SENTRY_DSN` bo'sh bo'lsa o'chiq, `send_default_pii=False`).
 - [x] 2026-11-02 — P2-3: `X-Request-ID` middleware, log satrlarida `[request_id]`, Sentry tag.
 - [x] 2026-11-02 — P1-5: beat heartbeat + `GET /healthz/celery/` (nginx orqali), celery worker healthcheck.
+- [x] 2026-11-02 — P2-5: `scripts/run_tests_on_day.py` (time-machine) — CI testlarni dushanba, 1-sana, yil boshi, 29-fevral va Toshkent kechasida ham ishlatadi; testlarda `date.today()` → `timezone.localdate()`.
