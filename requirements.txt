@@ -17,3 +17,4 @@ uritemplate==4.2.0
 whitenoise==6.12.0
 celery==5.6.1
 redis==7.4.1
+sentry-sdk[django,celery]==2.73.0

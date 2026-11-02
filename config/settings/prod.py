@@ -2,6 +2,8 @@
 
 from decouple import Csv, config
 
+from config.observability import init_sentry
+
 from .base import *  # noqa: F403
 
 DEBUG = False
@@ -73,3 +75,12 @@ if config("ALLOW_INSECURE_HTTP", cast=bool, default=False):
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
     REFRESH_COOKIE_SECURE = False
+
+# --------------------------------------------------------------------------
+# Error reporting — off unless SENTRY_DSN is set (config/observability.py)
+# --------------------------------------------------------------------------
+init_sentry(
+    config("SENTRY_DSN", default=""),
+    environment=config("SENTRY_ENVIRONMENT", default="production"),
+    traces_sample_rate=config("SENTRY_TRACES_SAMPLE_RATE", cast=float, default=0.0),
+)
