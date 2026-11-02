@@ -9,9 +9,11 @@ import sentry_sdk
 from apps.common.logging import request_id_var
 
 HEADER = "X-Request-ID"
-# An ID from a proxy in front (Caddy, nginx) is kept so both logs line up — but
-# only a plain token: anything else (a newline, a megabyte) would let a client
-# write fake lines into the log.
+# The bundled nginx (frontend/nginx.conf) always sets X-Request-ID to its own
+# $request_id, overwriting whatever a client sent, so nginx and Django logs
+# line up. Without that proxy the header comes from the client; it is kept
+# only as a plain token — anything else (a newline, a megabyte) would let a
+# client write fake lines into the log.
 _VALID = re.compile(r"[A-Za-z0-9-]{8,64}")
 
 
