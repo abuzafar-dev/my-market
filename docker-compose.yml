@@ -155,12 +155,18 @@ services:
 
   # Daily backup of the database and the product images (scripts/backup.sh):
   # once at start-up, then every 24 h; copies older than BACKUP_KEEP_DAYS are
-  # rotated out. Same postgres major as `db`, so pg_dump matches the server.
-  # The files live in the project-prefixed `backups` volume — copy them off the
-  # server regularly (docs/STAGING.md "Backup va tiklash").
+  # rotated out. Same postgres major as `db`, so pg_dump matches the server —
+  # bump both together. Files go to ./backups/<project>/ on the host, not a
+  # named volume: `docker compose down -v` deletes volumes, and must not take
+  # the backups along with the database. The project name keeps staging's
+  # copies apart from production's. Copy them off the server regularly
+  # (docs/BACKUP.md).
   backup:
     image: postgres:17-alpine
     restart: unless-stopped
+    # PID 1 that forwards SIGTERM, so a stop does not wait 10 s and SIGKILL a
+    # run half-way.
+    init: true
     security_opt: ["no-new-privileges:true"]
     environment:
       PGHOST: db
@@ -174,15 +180,21 @@ services:
       - sh
       - -c
       - while true; do /scripts/backup.sh || echo 'BACKUP FAILED' >&2; sleep 86400; done
+    # Unhealthy when the newest dump is missing, empty or older than 25 h.
+    healthcheck:
+      test: ["CMD", "/scripts/backup-healthy.sh"]
+      interval: 1h
+      timeout: 10s
+      retries: 1
+      start_period: 15m
     depends_on:
       db:
         condition: service_healthy
     volumes:
-      - backups:/backups
+      - ./backups/${COMPOSE_PROJECT_NAME:-my-market}:/backups
       - media:/media:ro
       - ./scripts:/scripts:ro
 
 volumes:
   postgres_data:
   media:
-  backups:

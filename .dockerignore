@@ -19,3 +19,5 @@ frontend/
 .agents/
 .claude/
 QOLLANMA.md
+# backup dumps (docker-compose `backup` service) — never into an image
+backups/

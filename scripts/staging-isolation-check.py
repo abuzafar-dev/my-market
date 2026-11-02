@@ -37,6 +37,11 @@ def main() -> int:
                 print(f"proxy alias     {alias} ({name})")
                 if alias == PRODUCTION["alias"]:
                     problems.append(f"{name}: proxy alias {alias!r} is production's")
+        for mount in service.get("volumes") or []:
+            if mount.get("type") == "bind" and mount.get("target") == "/backups":
+                print(f"backup dir      {mount['source']} ({name})")
+                if mount["source"].rstrip("/").endswith(f"/backups/{PRODUCTION['project']}"):
+                    problems.append(f"{name}: writes into production's backup folder")
         env = service.get("environment") or {}
         if "SECRET_KEY" in env:  # an app container (backend / celery / beat)
             token = "set" if env.get("WHATSAPP_ACCESS_TOKEN") else "EMPTY"

@@ -26,6 +26,10 @@ trap cleanup EXIT
 
 mkdir -p "$BACKUP_DIR"
 
+# Leftovers of a run that was killed mid-way (no EXIT trap on SIGKILL). Only
+# older than an hour, so a second, manual run never removes a live one.
+find "$BACKUP_DIR" -maxdepth 1 -type f -name '*.partial' -mmin +60 -delete
+
 pg_dump --format=custom --no-owner > "$db_file.partial"
 [ -s "$db_file.partial" ] || { echo "backup: pg_dump produced an empty file" >&2; exit 1; }
 
@@ -33,7 +37,10 @@ if [ -d "$MEDIA_DIR" ]; then
     tar -czf "$media_file.partial" -C "$MEDIA_DIR" .
 else
     # No media yet (fresh install): an empty archive keeps the pair complete.
-    tar -czf "$media_file.partial" -T /dev/null
+    # (An empty directory, not `-T /dev/null`, which BusyBox tar refuses.)
+    empty=$(mktemp -d)
+    tar -czf "$media_file.partial" -C "$empty" .
+    rmdir "$empty"
 fi
 
 mv "$db_file.partial" "$db_file"

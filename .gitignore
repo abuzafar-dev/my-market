@@ -22,3 +22,6 @@ skills-lock.json
 
 # Presentations / coursework artefacts
 *.pptx
+
+# Database + media backups written by the `backup` compose service
+/backups/
