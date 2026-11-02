@@ -46,7 +46,11 @@ Bog'liq hujjat: [TZ.md](TZ.md) (§5 NFR, §8 ochiq savollar).
 ## P3 — Keyingi versiya (TZ §8 ochiq savollariga bog'liq)
 
 - [ ] **P3-1. WhatsApp ishga tushirish** — Meta tokeni, tasdiqlangan shablonlar (`manage.py whatsapp_templates`), staging'da haqiqiy raqamga sinov.
-- [ ] **P3-2. Offline sotuv** (Q-03) — IndexedDB navbati + `client_id` idempotentligi tayyor, faqat frontend sinxronlash kerak.
+- [ ] **P3-2. Offline sotuv** (Q-03) — backend idempotentligi tayyor, frontend offline navbati **yo'q** (noldan yoziladi).
+  - Tayyor (backend): `unique_together = ("shop", "client_id")` (`apps/sales/models.py:55`); takroriy so'rov asl sotuvni 201 bilan qaytaradi (`apps/sales/views.py:63`), poyga holatida `IntegrityError` → mavjud sotuv (`apps/sales/services.py:142-143`).
+  - Tayyor (frontend): `clientId` savat bilan `localStorage` da saqlanadi (`frontend/src/stores/cart.js:32,48`), shuning uchun javob yo'qolgan bitta checkout'ni qayta yuborish xavfsiz; `uuid()` HTTPS bo'lmasa ham ishlaydi (`frontend/src/utils/uuid.js`).
+  - Yo'q: IndexedDB/navbat, `navigator.onLine`/`online` hodisasi, avtomatik qayta yuborish. Offline'da `checkout()` (`cart.js:148`) shunchaki xato beradi; faqat bitta savat saqlanadi, bir nechta offline sotuv uchun joy yo'q.
+  - Qilish kerak: checkout xatosida (tarmoq) sotuvni `client_id` bilan IndexedDB navbatiga yozish va savatni bo'shatish; `online` bo'lganda ketma-ket yuborish (201 yoki takroriy javob → navbatdan o'chirish, 4xx → "ko'rib chiqish kerak" ro'yxati, masalan qoldiq tugagan); navbatdagi sotuvlar sonini UI'da ko'rsatish; Vitest testlari.
 - [ ] **P3-3. Fiskal kassa / OFD** (Q-04) — talab bo'lsa.
 - [ ] **P3-4. `tz-architect-engine` hujjatlari 02–06** — hozir bo'sh shablon va FastAPI tuzilmasi yozilgan; Django loyihaga moslab to'ldirish yoki o'chirish.
 
