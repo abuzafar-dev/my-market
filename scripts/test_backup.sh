@@ -141,9 +141,10 @@ test_compose_backups_survive_down_v() {
     # Backups must not live in a named volume: `docker compose down -v` would
     # delete them together with the database. Needs only the docker CLI.
     if ! command -v docker >/dev/null 2>&1; then echo "skip test_compose_backups_survive_down_v (no docker CLI)"; return; fi
+    # CI has no .env; compose needs an existing env_file, so point it at the example.
     local prod staging
-    prod=$(cd "$ROOT" && POSTGRES_PASSWORD=x docker compose config --format json 2>/dev/null | python3 -c 'import json,sys;v=[v for v in json.load(sys.stdin)["services"]["backup"]["volumes"] if v["target"]=="/backups"][0];print(v["type"], v["source"])')
-    staging=$(cd "$ROOT" && POSTGRES_PASSWORD=x COMPOSE_PROJECT_NAME=my-market-staging docker compose config --format json 2>/dev/null | python3 -c 'import json,sys;v=[v for v in json.load(sys.stdin)["services"]["backup"]["volumes"] if v["target"]=="/backups"][0];print(v["type"], v["source"])')
+    prod=$(cd "$ROOT" && APP_ENV_FILE=.env.example POSTGRES_PASSWORD=x docker compose config --format json | python3 -c 'import json,sys;v=[v for v in json.load(sys.stdin)["services"]["backup"]["volumes"] if v["target"]=="/backups"][0];print(v["type"], v["source"])')
+    staging=$(cd "$ROOT" && APP_ENV_FILE=.env.example POSTGRES_PASSWORD=x COMPOSE_PROJECT_NAME=my-market-staging docker compose config --format json | python3 -c 'import json,sys;v=[v for v in json.load(sys.stdin)["services"]["backup"]["volumes"] if v["target"]=="/backups"][0];print(v["type"], v["source"])')
     check test_compose_backups_are_bind_mount test "${prod%% *}" = bind
     check test_compose_backups_prod_dir test "${prod##*/}" = my-market
     check test_compose_backups_staging_dir_differs test "${staging##*/}" = my-market-staging
