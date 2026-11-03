@@ -16,3 +16,4 @@ node_modules/
 .agents/
 .claude/
 skills-lock.json
+.venv-ci/
