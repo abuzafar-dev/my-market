@@ -86,7 +86,7 @@ class ReportsView(APIView):
                     "range": {"start": prev_start.isoformat(), "end": prev_end.isoformat()},
                     **totals_between(shop, prev_start, prev_end),
                 },
-                "series": sales_series(shop, start, end),
+                "series": sales_series(shop, period, start, end),
                 "stats": sales_stats(shop, start, end),
                 "products": sold_products(shop, start, end),
                 "debt": debt_summary(shop, start, end),
@@ -116,7 +116,7 @@ class ReportsExportView(APIView):
         start, end = period_bounds(period, _anchor(request))
         if request.query_params.get("file") == "xlsx":
             return period_xlsx_response(shop, period, start, end, lang)
-        return period_csv_response(shop, start, end, lang)
+        return period_csv_response(shop, period, start, end, lang)
 
 
 _XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
