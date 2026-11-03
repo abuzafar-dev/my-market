@@ -158,7 +158,7 @@ def _day_table(
 ) -> tuple[list[str], list[list], list]:
     """Header, body rows and the totals row of the per-day (per-hour) table."""
     text = TEXT[lang]
-    series = sales_series(shop, start, end, hourly=period == "day")
+    series = sales_series(shop, period, start, end)
     is_hourly = series["kind"] == "hour"
 
     header = [text["hour"] if is_hourly else text["date"]]

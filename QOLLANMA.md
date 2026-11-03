@@ -716,7 +716,7 @@ Ilova har ishga tushganda `manage.py ensure_admin --if-configured` ishlaydi:
 - do'kon hali yo'q bo'lsa — do'kon paydo bo'lgach yaratiladi.
 
 Parol hech qachon ekranga yoki logga chiqmaydi. Parolni almashtirish:
-`docker compose exec web python manage.py changepassword +998...`.
+`docker compose exec backend python manage.py changepassword +998...`.
 
 > ⚠️ Eski versiyalar `+998777777777` akkauntini hammaga ma'lum parol bilan
 > yaratib, har ishga tushishda qayta tiklardi. Shu versiya ishlagan serverda

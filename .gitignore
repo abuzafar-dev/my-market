@@ -25,3 +25,5 @@ skills-lock.json
 
 # Database + media backups written by the `backup` compose service
 /backups/
+
+.venv-ci/

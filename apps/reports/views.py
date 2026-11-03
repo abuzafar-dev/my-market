@@ -92,7 +92,7 @@ class ReportsView(APIView):
                     "range": {"start": prev_start.isoformat(), "end": prev_end.isoformat()},
                     **totals_between(shop, prev_start, prev_end),
                 },
-                "series": sales_series(shop, start, end, hourly=period == "day"),
+                "series": sales_series(shop, period, start, end),
                 "stats": sales_stats(shop, start, end),
                 "products": sold_products(shop, start, end),
                 "debt": debt_summary(shop, start, end),
