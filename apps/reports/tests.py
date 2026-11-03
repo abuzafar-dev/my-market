@@ -1,19 +1,24 @@
+import tempfile
 from datetime import date
 from decimal import Decimal
 from io import BytesIO
+from unittest.mock import patch
 from uuid import uuid4
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
+from django.utils import timezone
 from openpyxl import load_workbook
 from rest_framework.test import APIClient
 
 from apps.catalog.models import Batch, Product
+from apps.reports.models import ExportJob
 from apps.reports.services import sales_series
 from apps.sales.models import Sale
 from apps.sales.services import CartLine, cancel_sale, create_sale
 from apps.shops.models import Shop, ShopSettings, User
 
 
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp(prefix="my-market-report-media-"))
 class ReportExportTests(TestCase):
     def setUp(self):
         self.shop = Shop.objects.create(name="Do'kon", phone="+998900000000")
@@ -30,6 +35,22 @@ class ReportExportTests(TestCase):
         )
         self.client = APIClient()
         self.client.force_authenticate(self.owner)
+
+    def xlsx_bytes(self, **payload):
+        """Queue the workbook and return the finished job.
+
+        The Excel export moved off the request path onto Celery
+        (apps/reports/tasks.py), so it is a POST and the file arrives on the
+        job row. on_commit never fires inside TestCase's transaction, hence
+        captureOnCommitCallbacks. CSV still comes straight back from GET.
+        """
+        payload.setdefault("period", "month")
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post("/api/reports/export/", payload, format="json")
+        self.assertEqual(response.status_code, 202)
+        job = ExportJob.objects.get(pk=response.data["id"])
+        self.assertEqual(job.status, ExportJob.Status.DONE)
+        return job
 
     def make_product(self, name, stock, min_stock="5", unit=Product.Unit.KG):
         product = Product.objects.create(
@@ -154,21 +175,35 @@ class PeriodReportTests(ReportExportTests):
 
         rows = data["series"]["rows"]
         self.assertEqual(data["series"]["kind"], "day")
-        self.assertEqual(len(rows), date.today().day)  # 1st .. today, zeros included
-        self.assertEqual(rows[0]["key"], date.today().replace(day=1).isoformat())
-        self.assertEqual(rows[-1]["key"], date.today().isoformat())
+        self.assertEqual(len(rows), timezone.localdate().day)  # 1st .. today, zeros included
+        self.assertEqual(rows[0]["key"], timezone.localdate().replace(day=1).isoformat())
+        self.assertEqual(rows[-1]["key"], timezone.localdate().isoformat())
         self.assertEqual(
             (rows[-1]["count"], rows[-1]["revenue"], rows[-1]["profit"]), (1, 2400, 400)
         )
         self.assertEqual(sum(row["revenue"] for row in rows), data["stats"]["revenue"])
-        self.assertEqual(data["range"]["end"], date.today().isoformat())
+        self.assertEqual(data["range"]["end"], timezone.localdate().isoformat())
 
     def test_week_series_starts_on_monday(self):
         rows = self.client.get("/api/reports/", {"period": "week"}).json()["data"]["series"]["rows"]
 
         first = date.fromisoformat(rows[0]["key"])
         self.assertEqual(first.weekday(), 0)
-        self.assertEqual(len(rows), date.today().weekday() + 1)
+        self.assertEqual(len(rows), timezone.localdate().weekday() + 1)
+
+    def test_week_and_month_stay_per_day_when_only_one_day_has_passed(self):
+        # On a Monday the week so far, and on the 1st the month so far, are a
+        # single day — they must still come back per day, not per hour.
+        for period, today in (("week", date(2026, 11, 2)), ("month", date(2026, 11, 1))):
+            with (
+                self.subTest(period=period),
+                patch("django.utils.timezone.localdate", return_value=today),
+            ):
+                series = self.client.get("/api/reports/", {"period": period}).json()["data"][
+                    "series"
+                ]
+                self.assertEqual(series["kind"], "day")
+                self.assertEqual([row["key"] for row in series["rows"]], [today.isoformat()])
 
     def test_week_or_month_of_a_single_day_is_still_listed_by_day(self):
         # A week on its Monday or a month on its 1st spans one day; the series
@@ -205,13 +240,10 @@ class PeriodReportTests(ReportExportTests):
         self.sell(product, "2")
         self.sell(product, "1")
 
-        response = self.client.get(
-            "/api/reports/export/", {"period": "week", "file": "xlsx", "lang": "uz"}
-        )
+        job = self.xlsx_bytes(period="week", lang="uz")
 
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(".xlsx", response["Content-Disposition"])
-        workbook = load_workbook(BytesIO(response.content))
+        self.assertTrue(job.filename.endswith(".xlsx"))
+        workbook = load_workbook(BytesIO(job.file.read()))
         self.assertEqual(
             workbook.sheetnames,
             ["Xulosa", "Kunlar bo'yicha", "Barcha sotuvlar", "Mahsulotlar bo'yicha"],
@@ -228,13 +260,11 @@ class PeriodReportTests(ReportExportTests):
     def test_xlsx_export_in_russian(self):
         self.sell(self.make_product("Un", "50"), "1")
 
-        response = self.client.get(
-            "/api/reports/export/", {"period": "month", "file": "xlsx", "lang": "ru"}
-        )
+        job = self.xlsx_bytes(period="month", lang="ru")
 
-        workbook = load_workbook(BytesIO(response.content))
+        workbook = load_workbook(BytesIO(job.file.read()))
         self.assertEqual(workbook.sheetnames[0], "Итоги")
-        self.assertIn("otchet_", response["Content-Disposition"])
+        self.assertIn("otchet_", job.filename)
 
     def test_csv_export_is_excel_friendly_and_matches_the_screen_totals(self):
         self.sell(self.make_product("Un", "50"), "2")
@@ -248,11 +278,30 @@ class PeriodReportTests(ReportExportTests):
         self.assertTrue(lines[0].startswith("Sana;Hafta kuni;Sotuvlar soni"))
         self.assertTrue(lines[-1].startswith("JAMI;;1;2400"))
 
+    def test_exports_stay_per_day_when_the_week_or_month_is_one_day_old(self):
+        # The Monday / 1st case for the files, not just the JSON series: CSV
+        # header and Excel sheet must be the per-day ones.
+        for period, today in (("week", date(2026, 11, 2)), ("month", date(2026, 11, 1))):
+            with (
+                self.subTest(period=period),
+                patch("django.utils.timezone.localdate", return_value=today),
+            ):
+                csv = self.client.get("/api/reports/export/", {"period": period, "file": "csv"})
+                header = csv.content.decode("utf-8").lstrip("\ufeff").splitlines()[0]
+                self.assertTrue(header.startswith("Sana;Hafta kuni;"), header)
+
+                job = self.xlsx_bytes(period=period, lang="uz")
+                sheets = load_workbook(BytesIO(job.file.read())).sheetnames
+                self.assertIn("Kunlar bo'yicha", sheets)
+
     def test_export_is_owner_only(self):
         seller = APIClient()
         seller.force_authenticate(self.seller)
 
-        self.assertEqual(seller.get("/api/reports/export/", {"file": "xlsx"}).status_code, 403)
+        self.assertEqual(
+            seller.post("/api/reports/export/", {"period": "month"}, format="json").status_code,
+            403,
+        )
 
 
 class DebtSummaryTests(ReportExportTests):
@@ -331,15 +380,11 @@ class DebtSummaryTests(ReportExportTests):
         product = self.make_product("Un", "100")
         self.sell_on_credit(product, "5", self.make_customer("Aziz"))
 
-        response = self.client.get(
-            "/api/reports/export/", {"period": "month", "file": "xlsx", "lang": "uz"}
-        )
+        job = self.xlsx_bytes(period="month", lang="uz")
 
         summary = {
             row[0]: row[1]
-            for row in load_workbook(BytesIO(response.content))["Xulosa"].iter_rows(
-                values_only=True
-            )
+            for row in load_workbook(BytesIO(job.file.read()))["Xulosa"].iter_rows(values_only=True)
             if row[0]
         }
         self.assertEqual(summary["Qarzga (so'm)"], 6000)
@@ -418,3 +463,44 @@ class PeriodBoundsTests(TestCase):
         today = date(2026, 9, 24)
         self.assertEqual(self.bounds("month", today, today), (date(2026, 9, 1), today))
         self.assertEqual(self.bounds("week", today, today), (date(2026, 9, 21), today))
+
+
+class QueryCountTests(ReportExportTests):
+    """The number of SQL queries behind the busiest screens must not grow with
+    the data — an N+1 (one query per product / sale) only shows once a real
+    shop has a month of sales, as a slow page."""
+
+    ENDPOINTS = [
+        ("/api/reports/", {"period": "month"}),
+        ("/api/dashboard/", {}),
+        ("/api/sales/", {}),
+        ("/api/products/", {}),
+        ("/api/customers/", {}),
+    ]
+
+    def fill(self, products):
+        from apps.debt.models import Customer
+
+        for i in range(products):
+            product = self.make_product(f"Mahsulot {i}", "100")
+            self.sell(product, "1")
+            self.sell(product, "2")
+            Customer.objects.create(shop=self.shop, full_name=f"Mijoz {i}", debt_balance=1000 * i)
+
+    def queries(self, path, params):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        with CaptureQueriesContext(connection) as ctx:
+            response = self.client.get(path, params)
+        self.assertEqual(response.status_code, 200, path)
+        return len(ctx)
+
+    def test_query_count_does_not_grow_with_data(self):
+        self.fill(3)
+        small = {path: self.queries(path, params) for path, params in self.ENDPOINTS}
+
+        self.fill(12)  # 15 products, 30 sales, 15 customers
+        big = {path: self.queries(path, params) for path, params in self.ENDPOINTS}
+
+        self.assertEqual(big, small)

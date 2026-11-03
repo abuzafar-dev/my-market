@@ -6,6 +6,7 @@ import api from '@/api/client'
 import Icon from '@/components/Icon.vue'
 import LoadMore from '@/components/LoadMore.vue'
 import PageTitle from '@/components/PageTitle.vue'
+import WhatsAppStatus from '@/components/WhatsAppStatus.vue'
 import { t } from '@/i18n'
 import { useToastStore } from '@/stores/toast'
 import { formatMoney } from '@/utils/format'
@@ -44,6 +45,26 @@ const {
   q: route.query.q || undefined,
   filter: route.query.filter || undefined,
 }))
+
+// Latest WhatsApp message status per customer row (FT-6), fetched for the
+// rows on screen; a failure only hides the pills.
+const waStatus = ref({})
+watch(customers, async (rows) => {
+  const ids = rows.map((c) => c.id).filter((id) => !(id in waStatus.value))
+  if (!ids.length) return
+  try {
+    const response = await api.get('/customers/whatsapp-statuses/', {
+      params: { ids: ids.join(',') },
+    })
+    const found = response.data.data
+    waStatus.value = {
+      ...waStatus.value,
+      ...Object.fromEntries(ids.map((id) => [id, found[id] ?? null])),
+    }
+  } catch {
+    // statuses are a hint, never a blocker
+  }
+})
 
 async function loadSummary() {
   const response = await api.get('/customers/summary/')
@@ -303,7 +324,15 @@ onBeforeUnmount(() => {
                   {{ initials(customer.full_name) }}
                 </span>
                 <div class="min-w-0 leading-tight">
-                  <p class="truncate font-semibold">{{ customer.full_name }}</p>
+                  <p class="flex min-w-0 items-center gap-1.5">
+                    <span class="truncate font-semibold">{{ customer.full_name }}</span>
+                    <WhatsAppStatus
+                      v-if="waStatus[customer.id]"
+                      :status="waStatus[customer.id].status"
+                      :title="t(`whatsapp.kind_${waStatus[customer.id].kind}`)"
+                      class="shrink-0"
+                    />
+                  </p>
                   <p
                     v-if="customer.phone"
                     class="mt-0.5 truncate font-mono text-[11px] text-[var(--color-ink-soft)] @xl:hidden"

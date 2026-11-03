@@ -35,11 +35,30 @@ jobs:
       - name: Format check (ruff)
         run: ruff format --check .
 
+      - name: Known vulnerabilities (pip-audit)
+        run: pip-audit -r requirements.txt
+
       - name: Missing migrations check
         run: python manage.py makemigrations --check --dry-run
 
       - name: Test
         run: python manage.py test
+
+      - name: Date-sensitive tests on edge days
+        # Monday, the 1st, New Year, 29 Feb (week/month/year = one day), and
+        # 02:00 in Tashkent (the previous day in UTC, where aware datetimes
+        # and DB date truncation can disagree). Every app that works with
+        # dates: reports, sales, catalog (expiry), debt + notifications
+        # (due dates, reminders). See scripts/run_tests_on_day.py.
+        run: |
+          apps="apps.reports apps.sales apps.catalog apps.debt apps.notifications"
+          for day in 2026-11-02 2026-11-01 2027-01-01 2028-02-29; do
+            python scripts/run_tests_on_day.py "$day" $apps
+          done
+          python scripts/run_tests_on_day.py 2026-11-03 --at 02:00 $apps
+
+      - name: Backup scripts test
+        run: bash scripts/test_backup.sh
 
   frontend:
     runs-on: ubuntu-latest
@@ -60,6 +79,12 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Unit tests (Vitest)
+        run: npm test
+
+      - name: Known vulnerabilities (npm audit, runtime deps)
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Build
         run: npm run build

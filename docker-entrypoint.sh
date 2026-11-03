@@ -1,6 +1,14 @@
 #!/bin/sh
 set -e
 
+# One-time startup work (migrations, demo data, admin login) belongs to the
+# backend container only. The Celery worker and beat use this same image and
+# entrypoint with RUN_STARTUP_TASKS=false (docker-compose.yml): three
+# containers migrating the same database at once can fail half-way.
+case "$(echo "${RUN_STARTUP_TASKS:-true}" | tr '[:upper:]' '[:lower:]')" in
+  false|0|no) exec "$@" ;;
+esac
+
 python manage.py migrate --noinput
 
 # Demo data only when explicitly asked for (SEED_DEMO=true in .env). A real

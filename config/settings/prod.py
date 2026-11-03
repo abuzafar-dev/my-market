@@ -2,6 +2,8 @@
 
 from decouple import Csv, config
 
+from config.observability import init_sentry, parse_sample_rate
+
 from .base import *  # noqa: F403
 
 DEBUG = False
@@ -13,14 +15,10 @@ ADMIN_ENABLED = config("ADMIN_ENABLED", cast=bool, default=False)
 # origin needs CORS access. Leave empty unless a separate front-end host is used.
 CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", cast=Csv(), default="")
 
-# Login attempt counters and rate limits must be shared by all gunicorn workers.
-# A file cache is process-safe and needs no extra service.
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
-        "LOCATION": config("CACHE_DIR", default="/tmp/my-market-cache"),
-    }
-}
+# The cache comes from base.py and is Redis: login-attempt counters and rate
+# limits have to be shared by every gunicorn worker, which a per-process cache
+# cannot do and a file cache only does slowly. Redis is already in the stack as
+# the Celery broker, so this costs nothing extra.
 
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv())
 
@@ -63,7 +61,7 @@ if config("BEHIND_PROXY", cast=bool, default=False):
 CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", cast=Csv(), default="")
 
 # The uptime check must answer over plain HTTP from inside the container.
-SECURE_REDIRECT_EXEMPT = [r"^healthz/$"]
+SECURE_REDIRECT_EXEMPT = [r"^healthz/$", r"^healthz/celery/$"]
 
 # --------------------------------------------------------------------------
 # TEMPORARY test mode: plain HTTP (no TLS) — e.g. reaching the server by IP
@@ -77,3 +75,12 @@ if config("ALLOW_INSECURE_HTTP", cast=bool, default=False):
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
     REFRESH_COOKIE_SECURE = False
+
+# --------------------------------------------------------------------------
+# Error reporting — off unless SENTRY_DSN is set (config/observability.py)
+# --------------------------------------------------------------------------
+init_sentry(
+    config("SENTRY_DSN", default=""),
+    environment=config("SENTRY_ENVIRONMENT", default="production"),
+    traces_sample_rate=parse_sample_rate(config("SENTRY_TRACES_SAMPLE_RATE", default="")),
+)

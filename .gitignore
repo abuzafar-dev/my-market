@@ -1,5 +1,8 @@
 .venv/
 .env
+# any other env file (e.g. .env.staging) holds secrets too
+.env.*
+!.env.example
 CREDENTIALS.local.md
 adhoc.crt
 adhoc.key
@@ -16,4 +19,11 @@ node_modules/
 .agents/
 .claude/
 skills-lock.json
+
+# Presentations / coursework artefacts
+*.pptx
+
+# Database + media backups written by the `backup` compose service
+/backups/
+
 .venv-ci/

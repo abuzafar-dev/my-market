@@ -23,6 +23,14 @@ const EXACT = {
   'Bunday kategoriya allaqachon bor.': 'errors.category_exists',
   'Nomini kiriting.': 'errors.name_required',
   "Qabul qilingan sana kelajakda bo'lishi mumkin emas.": 'errors.future_date',
+  'Mijoz WhatsApp xabarlariga rozilik bermagan.': 'errors.wa_no_consent',
+  "Mijozning qarzi yo'q.": 'errors.wa_no_debt',
+  "Bu mijozga bugun eslatma yuborilgan. Ertaga qayta urinib ko'ring.": 'errors.wa_sent_today',
+  "Do'konda WhatsApp xabarlari o'chirilgan. Sozlamalardan yoqing.": 'errors.wa_disabled',
+  'WhatsApp hali ulanmagan. Administratorga murojaat qiling.': 'errors.wa_not_configured',
+  "Mijozning telefon raqami noto'g'ri. +998 XX XXX XX XX ko'rinishida kiriting.":
+    'errors.wa_bad_phone',
+  "To'lov muddati o'tgan sana bo'lishi mumkin emas.": 'errors.due_past',
 }
 
 const PATTERNS = [

@@ -50,6 +50,10 @@ class DebtEntry(BaseModel):
         max_length=10, choices=EntryType.choices, verbose_name="Yozuv turi"
     )
     note = models.TextField(blank=True, verbose_name="Izoh")
+    # Optional, debt entries only: when the shop expects this debt back. Drives
+    # the WhatsApp reminders (apps/notifications); a debt without one is never
+    # reminded about automatically.
+    due_date = models.DateField(null=True, blank=True, verbose_name="To'lov muddati")
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,

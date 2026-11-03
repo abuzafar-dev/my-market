@@ -67,4 +67,10 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  // `npm test` (Vitest): unit tests live next to the code as *.spec.js;
+  // happy-dom supplies window / localStorage for the stores.
+  test: {
+    environment: 'happy-dom',
+    include: ['src/**/*.spec.js'],
+  },
 })

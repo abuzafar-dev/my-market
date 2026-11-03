@@ -19,3 +19,21 @@ ALLOWED_HOSTS = ["localhost", "127.0.0.1", DEV_LAN_HOST]
 # self-signed cert, so secure-context-only browser APIs (camera, BarcodeDetector)
 # work when opened from a phone over the LAN, not just at http://localhost.
 INSTALLED_APPS = INSTALLED_APPS + ["django_extensions"]
+
+# --------------------------------------------------------------------------
+# Background work in development
+# --------------------------------------------------------------------------
+# `runserver` should not need Redis running. Point the broker at localhost and
+# keep the cache in process memory; start a worker only when you are actually
+# testing the export job:
+#     celery -A config worker -l info
+REDIS_URL = config("REDIS_URL", default="redis://127.0.0.1:6379/0")
+CELERY_BROKER_URL = config("CELERY_BROKER_URL", default=REDIS_URL)
+CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND", default=REDIS_URL)
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "my-market-dev",
+    }
+}

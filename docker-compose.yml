@@ -1,5 +1,12 @@
 name: my-market  # fixed, so it never clashes with another project's compose stack
 
+# A second stack on the same host (staging) runs from the same files with its
+# own env file, which sets COMPOSE_PROJECT_NAME (overrides `name:` above, so
+# containers, volumes, the default network and built images all get their own
+# prefix), APP_ENV_FILE (the env_file the app containers load — without it they
+# would load the production .env), WEB_PORT and PROXY_ALIAS. See
+# docs/STAGING.md §0a. Production sets none of these and is unaffected.
+
 # Whole stack on one machine: PostgreSQL + Django (gunicorn) + nginx (SPA and
 # reverse proxy). Only nginx is published, on WEB_BIND:WEB_PORT — by default
 # 127.0.0.1:8080, so put a TLS proxy (Caddy, see deploy/Caddyfile.example) in
@@ -21,12 +28,26 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    # Not published: only the backend and the worker talk to it, over the
+    # compose network. Exposing it would hand anyone the login-lockout
+    # counters and the task queue.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   backend:
     build:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    env_file: .env
+    env_file: ${APP_ENV_FILE:-.env}
     environment:
       # Container-networking values that must differ from the host-based
       # dev workflow's .env (see .env.example) — override rather than
@@ -37,8 +58,11 @@ services:
       # Proxies in front of gunicorn (Caddy + nginx). Needed so rate limits and
       # the login lockout see the real visitor address, not the proxy's.
       NUM_PROXIES: ${NUM_PROXIES:-2}
+      REDIS_URL: redis://redis:6379/0
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     # The app needs no special Linux privileges: drop them all.
     security_opt: ["no-new-privileges:true"]
@@ -51,6 +75,66 @@ services:
       timeout: 5s
       retries: 6
       start_period: 20s
+
+
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: ${APP_ENV_FILE:-.env}
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-my_market_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-my_market_db}
+      REDIS_URL: redis://redis:6379/0
+      # Migrations run in the backend container only (docker-entrypoint.sh).
+      RUN_STARTUP_TASKS: "false"
+    # Builds the Excel reports and sends WhatsApp messages. --concurrency=2:
+    # each report build holds a whole workbook in memory, so more processes
+    # mostly means more RAM.
+    command: ["celery", "-A", "config", "worker", "-l", "info", "--concurrency=2"]
+    # The worker answers a ping. (Beat is watched through GET /healthz/celery/,
+    # which an external uptime monitor polls — see docs/BACKUP.md.)
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME -t 10 | grep -q pong"]
+      interval: 60s
+      timeout: 20s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      # Started once the backend is up, i.e. after its migrations ran.
+      backend:
+        condition: service_healthy
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    volumes:
+      - media:/app/media
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: ${APP_ENV_FILE:-.env}
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-my_market_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-my_market_db}
+      REDIS_URL: redis://redis:6379/0
+      RUN_STARTUP_TASKS: "false"
+    # Schedules: export-file cleanup (hourly), WhatsApp sweeper (every minute)
+    # and debt reminders (every 15 min) — see CELERY_BEAT_SCHEDULE.
+    # --schedule: beat's state file must be writable by the non-root `app`
+    # user; /app (the code) is root-owned, /tmp is not. Run exactly one beat.
+    command: ["celery", "-A", "config", "beat", "-l", "info", "--schedule", "/tmp/celerybeat-schedule"]
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
 
   frontend:
     build:
@@ -68,6 +152,48 @@ services:
       - media:/usr/share/nginx/media:ro
     ports:
       - "${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8080}:80"
+
+  # Daily backup of the database and the product images (scripts/backup.sh):
+  # once at start-up, then every 24 h; copies older than BACKUP_KEEP_DAYS are
+  # rotated out. Same postgres major as `db`, so pg_dump matches the server —
+  # bump both together. Files go to ./backups/<project>/ on the host, not a
+  # named volume: `docker compose down -v` deletes volumes, and must not take
+  # the backups along with the database. The project name keeps staging's
+  # copies apart from production's. Copy them off the server regularly
+  # (docs/BACKUP.md).
+  backup:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    # PID 1 that forwards SIGTERM, so a stop does not wait 10 s and SIGKILL a
+    # run half-way.
+    init: true
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-my_market_user}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      PGDATABASE: ${POSTGRES_DB:-my_market_db}
+      BACKUP_DIR: /backups
+      MEDIA_DIR: /media
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    command:
+      - sh
+      - -c
+      - while true; do /scripts/backup.sh || echo 'BACKUP FAILED' >&2; sleep 86400; done
+    # Unhealthy when the newest dump is missing, empty or older than 25 h.
+    healthcheck:
+      test: ["CMD", "/scripts/backup-healthy.sh"]
+      interval: 1h
+      timeout: 10s
+      retries: 1
+      start_period: 15m
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backups/${COMPOSE_PROJECT_NAME:-my-market}:/backups
+      - media:/media:ro
+      - ./scripts:/scripts:ro
 
 volumes:
   postgres_data:

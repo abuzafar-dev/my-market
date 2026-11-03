@@ -224,9 +224,14 @@ def _autosize(sheet) -> None:
         sheet.column_dimensions[column[0].column_letter].width = min(max(width + 3, 12), 48)
 
 
-def period_xlsx_response(
-    shop: Shop, period: str, start: date, end: date, lang: str
-) -> HttpResponse:
+def build_period_workbook(shop: Shop, period: str, start: date, end: date, lang: str) -> Workbook:
+    """The whole report as an openpyxl workbook.
+
+    Split out from the HTTP layer so the Celery task can build the same file
+    without a request (apps/reports/tasks.py). Note that the workbook has to be
+    complete before a single byte can be written — that is exactly why this
+    moved off the request path.
+    """
     text = TEXT[lang]
     header, body, total_row = _day_table(shop, period, start, end, lang)
     money_headers = {text[f] for f in (*_MONEY_FIELDS, "debt_paid", "debt_outstanding")}
@@ -346,10 +351,28 @@ def period_xlsx_response(
     products_sheet.freeze_panes = "A2"
     _autosize(products_sheet)
 
+    return workbook
+
+
+def period_xlsx_filename(lang: str, start: date, end: date) -> str:
+    return _filename(lang, start, end, "xlsx")
+
+
+def period_xlsx_bytes(shop: Shop, period: str, start: date, end: date, lang: str) -> bytes:
     buffer = BytesIO()
-    workbook.save(buffer)
-    response = HttpResponse(buffer.getvalue(), content_type=_XLSX_CONTENT_TYPE)
+    build_period_workbook(shop, period, start, end, lang).save(buffer)
+    return buffer.getvalue()
+
+
+def period_xlsx_response(
+    shop: Shop, period: str, start: date, end: date, lang: str
+) -> HttpResponse:
+    """Kept for the synchronous path; the SPA now goes through the job
+    endpoints instead (apps/reports/views.py)."""
+    response = HttpResponse(
+        period_xlsx_bytes(shop, period, start, end, lang), content_type=_XLSX_CONTENT_TYPE
+    )
     response["Content-Disposition"] = (
-        f'attachment; filename="{_filename(lang, start, end, "xlsx")}"'
+        f'attachment; filename="{period_xlsx_filename(lang, start, end)}"'
     )
     return response

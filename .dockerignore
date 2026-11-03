@@ -1,5 +1,7 @@
 .venv/
 .env
+# any other env file (e.g. .env.staging) holds secrets too
+.env.*
 CREDENTIALS.local.md
 adhoc.crt
 adhoc.key
@@ -17,3 +19,5 @@ frontend/
 .agents/
 .claude/
 QOLLANMA.md
+# backup dumps (docker-compose `backup` service) — never into an image
+backups/

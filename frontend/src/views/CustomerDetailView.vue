@@ -4,11 +4,13 @@ import { useRouter } from 'vue-router'
 
 import api from '@/api/client'
 import Icon from '@/components/Icon.vue'
+import WhatsAppCard from '@/components/WhatsAppCard.vue'
+import WhatsAppStatus from '@/components/WhatsAppStatus.vue'
 import { t } from '@/i18n'
 import { useConfirmStore } from '@/stores/confirm'
 import { useToastStore } from '@/stores/toast'
 import { apiError } from '@/utils/errors'
-import { formatDateTime, formatMoney } from '@/utils/format'
+import { formatDate, formatDateTime, formatMoney } from '@/utils/format'
 
 const props = defineProps({ id: String })
 const router = useRouter()
@@ -24,12 +26,33 @@ const note = ref('')
 const submitting = ref(false)
 const historyRef = ref(null)
 const newEntryId = ref(null)
+const dueDate = ref('')
+// WhatsApp consent + message statuses; null (card hidden) if it can't load.
+const whatsapp = ref(null)
+
+// Shop-local today, for the due-date picker's lower bound.
+const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+  .toISOString()
+  .slice(0, 10)
 
 async function load() {
   const response = await api.get(`/customers/${props.id}/`)
   customer.value = response.data.data
 }
-onMounted(load)
+
+async function loadWhatsApp() {
+  try {
+    const response = await api.get(`/customers/${props.id}/whatsapp/`)
+    whatsapp.value = response.data.data
+  } catch {
+    whatsapp.value = null
+  }
+}
+
+onMounted(() => {
+  load()
+  loadWhatsApp()
+})
 
 // Recording a debt/payment: send it, then slide the page down to the history
 // so the new line is right there (and flashes), instead of leaving the user
@@ -56,10 +79,14 @@ async function record(kind) {
   submitting.value = true
   try {
     const paid = amount.value
-    await api.post(`/customers/${props.id}/${kind}/`, { amount: paid, note: note.value })
+    const payload = { amount: paid, note: note.value }
+    if (kind === 'debt' && dueDate.value) payload.due_date = dueDate.value
+    await api.post(`/customers/${props.id}/${kind}/`, payload)
     amount.value = ''
     note.value = ''
+    dueDate.value = ''
     await load()
+    loadWhatsApp()
     toast.success(
       t(kind === 'debt' ? 'debt.debt_added' : 'debt.payment_added', { amount: formatMoney(paid) }),
     )
@@ -93,6 +120,8 @@ async function saveEdit() {
   try {
     await api.patch(`/customers/${props.id}/`, editForm.value)
     await load()
+    // A new phone number drops the old consent on the server.
+    loadWhatsApp()
     editing.value = false
     toast.success(t('debt.customer_saved'))
   } catch (err) {
@@ -228,6 +257,17 @@ async function saveEdit() {
             :placeholder="t('debt.note')"
             class="mb-2 w-full rounded-lg border border-[var(--color-line)] px-3 py-2.5"
           />
+          <label class="mb-2 block">
+            <span class="mb-1 block text-[11px] font-semibold text-[var(--color-ink-soft)]">
+              {{ t('debt.due_date') }}
+            </span>
+            <input
+              v-model="dueDate"
+              type="date"
+              :min="today"
+              class="w-full rounded-lg border border-[var(--color-line)] px-3 py-2.5"
+            />
+          </label>
           <div class="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -247,6 +287,13 @@ async function saveEdit() {
             </button>
           </div>
         </div>
+
+        <WhatsAppCard
+          v-if="whatsapp"
+          :customer="customer"
+          :state="whatsapp"
+          @update="whatsapp = $event"
+        />
       </div>
 
       <div
@@ -301,6 +348,23 @@ async function saveEdit() {
                   <template v-if="entry.created_by_name"> · {{ entry.created_by_name }}</template>
                 </p>
                 <p v-if="entry.note" class="mt-0.5 break-words text-xs">{{ entry.note }}</p>
+                <p
+                  v-if="entry.due_date || whatsapp?.entry_status?.[entry.id]"
+                  class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--color-ink-soft)]"
+                >
+                  <span v-if="entry.due_date" class="flex items-center gap-1">
+                    <Icon name="calendar" :size="11" />
+                    {{ t('debt.due_short', { date: formatDate(entry.due_date) }) }}
+                  </span>
+                  <span
+                    v-if="whatsapp?.entry_status?.[entry.id]"
+                    class="flex items-center gap-1"
+                    :title="t(`whatsapp.kind_${whatsapp.entry_status[entry.id].kind}`)"
+                  >
+                    <Icon name="chat" :size="11" />
+                    <WhatsAppStatus :status="whatsapp.entry_status[entry.id].status" />
+                  </span>
+                </p>
               </div>
             </div>
             <span
