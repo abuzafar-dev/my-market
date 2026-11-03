@@ -3,7 +3,7 @@
 # Dev-only: lets `runserver_plus --cert-file adhoc` serve HTTPS locally, so
 # camera/BarcodeDetector APIs (secure-context only) work from a phone on the LAN.
 django-extensions==4.1
-Werkzeug==3.1.8
+Werkzeug==3.1.9
 pyOpenSSL==26.4.0
 
 # Dev tooling: pre-commit hooks, secret scanning, lint/format
