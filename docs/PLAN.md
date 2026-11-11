@@ -70,3 +70,4 @@ Bog'liq hujjat: [TZ.md](TZ.md) (§5 NFR, §8 ochiq savollar).
 - [x] 2026-11-02 — P2-1: Vitest (24 test: savat, shtrix-kod, qoldiq darajasi), CI'da `npm test`.
 - [x] 2026-11-02 — P2-6: `pip-audit` 44 ta zaiflik topdi → Pillow 13.0.0, DRF 3.18.2, PyJWT 2.15.0 (0 qoldi); CI'da pip-audit + npm audit, `.github/dependabot.yml`.
 - [x] 2026-11-02 — P1-4: `check --deploy` toza (xavfsizlik); README va TZ holati yangilandi. **Qoldi:** staging'da `docker compose up` bilan jonli sinov (bu mashinada Docker daemon ishlamaydi), P0-4 push/PR.
+- [x] 2026-11-11 — Loyiha yakunlandi: `v1.0.0` release. Loyiha muzlatilgani uchun `.github/dependabot.yml` o'chirildi va ochiq dependabot PR'lari (#5–#19) yopildi; zaiflik tekshiruvi CI'dagi `pip-audit` + `npm audit` orqali qoladi.

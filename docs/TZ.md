@@ -201,7 +201,7 @@ flowchart LR
 | NFR-06 | Kuzatuv | Log satrida `[request_id]`, xatolar monitoringi (Sentry), `/healthz/` va `/healthz/celery/` | ✅ Sentry `SENTRY_DSN` bilan yoqiladi |
 | NFR-07 | Lokalizatsiya | O'zbek (lotin) va rus, ish paytida almashtiriladi | ✅ |
 | NFR-08 | Moslashuvchanlik | 320px telefondan keng monitorgacha, PWA | ✅ |
-| NFR-09 | Sifat | CI: ruff, format, migratsiya, backend testlar (chekka sanalarda ham), backup skript testlari, `pip-audit`, Vitest, `npm audit`, build; dependabot | ✅ |
+| NFR-09 | Sifat | CI: ruff, format, migratsiya, backend testlar (chekka sanalarda ham), backup skript testlari, `pip-audit`, Vitest, `npm audit`, build (dependabot v1.0.0 dan keyin o'chirilgan — loyiha muzlatilgan) | ✅ |
 
 ---
 
