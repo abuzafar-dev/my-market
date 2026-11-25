@@ -2,7 +2,7 @@
 
 Usage (docs/STAGING.md §0a):
 
-    scripts/staging-compose.sh config --format json | python3 scripts/staging-isolation-check.py
+    deploy/staging-compose.sh config --format json | python3 deploy/staging-isolation-check.py
 
 Reads the resolved config on stdin and prints only names, ports, aliases,
 ALLOWED_HOSTS and whether the WhatsApp token is set — never a secret value.

@@ -1,8 +1,8 @@
 #!/bin/sh
 # Every docker compose command for STAGING goes through this script, e.g.
-#     scripts/staging-compose.sh config --quiet
-#     scripts/staging-compose.sh up -d --build
-#     scripts/staging-compose.sh logs --since 5m celery-beat
+#     deploy/staging-compose.sh config --quiet
+#     deploy/staging-compose.sh up -d --build
+#     deploy/staging-compose.sh logs --since 5m celery-beat
 #
 # Why: docker-compose.yml pins `name: my-market` for production. A plain
 # `docker compose up` for staging that forgets the project name targets the

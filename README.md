@@ -6,7 +6,7 @@ refresh cookie. Backend is Uzbek-facing (verbose names, error strings);
 code and docs are in English.
 
 For day-to-day usage (login, admin panel walkthrough, adding products,
-common issues) see [QOLLANMA.md](QOLLANMA.md). Backups and restore:
+common issues) see [QOLLANMA.md](docs/QOLLANMA.md). Backups and restore:
 [docs/BACKUP.md](docs/BACKUP.md).
 
 ## Screens
@@ -110,6 +110,41 @@ lives in each app's `services.py`, not in views.
   of a cart restored from the browser (`GET /api/products/?ids=...`),
   dropping archived ones and capping quantities at current stock.
 
+## Loyiha tuzilishi
+
+Where things live, and where a new file goes:
+
+```
+apps/            Django apps (one per domain: shops, catalog, sales, debt,
+                 reports, notifications, common) — models, services, views,
+                 migrations and tests sit inside their app
+config/          Django project: settings/{base,dev,prod,test}.py, urls,
+                 celery, observability
+frontend/        Vue 3 SPA (src/, public/) plus its own Dockerfile, nginx and
+                 tool configs — see frontend/README.md
+deploy/          everything for a server or a container start: env examples
+                 (production, staging), Caddy/nginx examples, the backend
+                 image's docker-entrypoint.sh, and the staging wrapper
+                 staging-compose.sh with its staging-isolation-check.py
+scripts/         developer and maintenance helpers: dev.sh (local HTTPS run),
+                 ci.sh, run_tests_on_day.py, export-clean.sh, and the backup
+                 scripts (backup.sh, backup-healthy.sh, restore.sh,
+                 test_backup.sh) — the compose `backup` service mounts this
+                 folder, so backup scripts stay here
+docs/            documentation: QOLLANMA.md (user/operator guide, Uzbek),
+                 BACKUP.md, STAGING.md, WHATSAPP.md, TZ.md (spec), PLAN.md,
+                 screenshots/, superpowers/plans/ (implementation plans)
+.github/         CI workflow (backend + frontend)
+```
+
+At the root stay only the files a command looks for there: `manage.py`,
+`pyproject.toml`, `requirements*.txt`, `Makefile`, `Dockerfile`,
+`docker-compose.yml` and its overlay `docker-compose.shared-proxy.yml`
+(servers point `COMPOSE_FILE` at both), `.env.example`, the launchers `./run`
+and `./run.sh` (same script, both kept so either command works), tool configs
+(`.pre-commit-config.yaml`, `.secrets.baseline`, `.dockerignore`) and
+`GEMINI.md` (read by Gemini CLI from the root).
+
 ## Local setup (without Docker)
 
 ### Backend
@@ -139,7 +174,7 @@ Required env vars (see `.env.example`):
 
 Camera/barcode-scanner APIs are secure-context-only, so testing them
 from a phone over the LAN needs HTTPS even in dev — see
-[QOLLANMA.md](QOLLANMA.md) for the `runserver_plus --cert-file adhoc`
+[QOLLANMA.md](docs/QOLLANMA.md) for the `runserver_plus --cert-file adhoc`
 setup.
 
 ### Frontend
@@ -157,7 +192,7 @@ works from `localhost` and from a phone on the LAN alike. Set
 `scripts/dev.sh` starts both servers over HTTPS in one go: it detects the
 machine's LAN IP, regenerates the shared self-signed certificate and updates
 `.env` (`DEV_LAN_HOST`, `CORS_ALLOWED_ORIGINS`) — see
-[QOLLANMA.md §3](QOLLANMA.md#3-dasturchi-rejimi).
+[QOLLANMA.md §3](docs/QOLLANMA.md#3-dasturchi-rejimi).
 
 ### Tests
 
@@ -215,7 +250,7 @@ A **real server** does not use `run.sh`: it uses
 `deploy/env.production.example`, keeps `SEED_DEMO=False`, creates its shop
 with `manage.py create_shop`, and puts Caddy (`deploy/Caddyfile.example`)
 in front for HTTPS. The exact, step-by-step procedure (Docker, `.env`,
-HTTPS, first owner, backups, updates) is in [QOLLANMA.md](QOLLANMA.md).
+HTTPS, first owner, backups, updates) is in [QOLLANMA.md](docs/QOLLANMA.md).
 
 `scripts/export-clean.sh` produces a shareable archive via `git
 archive`, so gitignored secrets never end up in an ad-hoc export.
@@ -237,12 +272,12 @@ all workers, also for the admin), session revocation on password change /
 logout, rate limits, input bounds, spreadsheet-formula and upload hardening.
 Production defaults: Django admin and API docs off, no CORS, strict CSP with
 self-hosted fonts, HSTS, secure cookies, containers without extra privileges.
-Details and the server checklist: [QOLLANMA.md §8](QOLLANMA.md#8-xavfsizlik).
+Details and the server checklist: [QOLLANMA.md §8](docs/QOLLANMA.md#8-xavfsizlik).
 
 ## Capacity
 
 Load-tested on PostgreSQL with 8,000 products, 60,000 sales (180,000
 lines) and 1,500 customers: product list ~30 ms, search 7–20 ms,
 checkout ~16 ms, reports 55–90 ms; 30 concurrent cashiers never oversell
-a batch and a retried request never double-sells (see QOLLANMA.md §5).
+a batch and a retried request never double-sells (see docs/QOLLANMA.md §5).
 List endpoints accept `?page_size=` (max 100).

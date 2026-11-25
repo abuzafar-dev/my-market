@@ -20,7 +20,7 @@ Why a host folder and not a Docker volume: **`docker compose down -v`
 deletes every volume of the project — the database included.** A backup in a
 volume would go with it. `./backups/` survives `down -v`; the project name in
 the path keeps staging and production from mixing or rotating each other's
-copies (`scripts/staging-isolation-check.py` refuses a staging config that
+copies (`deploy/staging-isolation-check.py` refuses a staging config that
 writes into `backups/my-market`). The files are owned by root (the container
 writes them); `./backups/` is ignored by Git and by the Docker build context.
 

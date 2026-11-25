@@ -9,7 +9,7 @@ REFRESH_COOKIE_SECURE = False
 
 # The current developer's LAN IP, for opening the app from a phone on the
 # same Wi-Fi — goes stale on a different network or a different developer's
-# machine, so it's an env var (see QOLLANMA.md's `hostname -I` note) rather
+# machine, so it's an env var (see docs/QOLLANMA.md's `hostname -I` note) rather
 # than hardcoded, with today's value kept as the local default.
 DEV_LAN_HOST = config("DEV_LAN_HOST", default="10.183.211.58")
 

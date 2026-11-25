@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # One-command dev launcher: detects this machine's current LAN IP, wires it
-# into .env (it goes stale on a new Wi-Fi — see QOLLANMA.md), then starts
+# into .env (it goes stale on a new Wi-Fi — see docs/QOLLANMA.md), then starts
 # backend (HTTPS, runserver_plus) and frontend (HTTPS, vite) together so
 # both localhost and phone-over-LAN work.
 set -euo pipefail

@@ -86,7 +86,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-my_market_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-my_market_db}
       REDIS_URL: redis://redis:6379/0
-      # Migrations run in the backend container only (docker-entrypoint.sh).
+      # Migrations run in the backend container only (deploy/docker-entrypoint.sh).
       RUN_STARTUP_TASKS: "false"
     # Builds the Excel reports and sends WhatsApp messages. --concurrency=2:
     # each report build holds a whole workbook in memory, so more processes

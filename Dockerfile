@@ -38,9 +38,9 @@ RUN SECRET_KEY=build-time-placeholder \
 # /app/media is the mount point of the shared `media` volume: it must exist and
 # belong to `app` *before* the volume is first created, or Docker makes it
 # root-owned and product photo uploads fail with PermissionError.
-RUN mkdir -p /app/media && chown -R app:app /home/app /app/media && chmod +x docker-entrypoint.sh
+RUN mkdir -p /app/media && chown -R app:app /home/app /app/media && chmod +x deploy/docker-entrypoint.sh
 USER app
 
 EXPOSE 8000
-ENTRYPOINT ["./docker-entrypoint.sh"]
+ENTRYPOINT ["./deploy/docker-entrypoint.sh"]
 CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--timeout", "60", "--access-logfile", "-"]

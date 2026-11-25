@@ -305,7 +305,7 @@ and expected output, secret-safe webhook checks — is
 Staging = its own server or Compose project, **its own database and Redis**,
 Meta's test number. Never production data, never the production `.env`.
 On a host that also runs production, every staging command goes through
-`scripts/staging-compose.sh` with `.env.staging` (project
+`deploy/staging-compose.sh` with `.env.staging` (project
 `my-market-staging`, port 8081, own volumes) — see STAGING.md §0a; plain
 `docker compose` in the project directory is production.
 
@@ -314,20 +314,20 @@ On a host that also runs production, every staging command goes through
 1. Copy `deploy/env.staging.example` to `.env.staging`. Set a new
    `SECRET_KEY`, `POSTGRES_*`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`. Keep
    its isolation lines; leave every `WHATSAPP_*` empty for now.
-2. `scripts/staging-compose.sh config --quiet` — valid and isolated (prints
+2. `deploy/staging-compose.sh config --quiet` — valid and isolated (prints
    nothing, or `staging-compose: …` naming what to fix).
-3. `scripts/staging-compose.sh up -d --build`. Order: db, redis → backend (runs
+3. `deploy/staging-compose.sh up -d --build`. Order: db, redis → backend (runs
    `migrate`, then gunicorn) → celery and celery-beat (start only once the
    backend is healthy, skip migrations).
 4. Check:
-   * `scripts/staging-compose.sh ps` — all services `running`/`healthy`;
-   * `scripts/staging-compose.sh exec backend python manage.py showmigrations debt notifications reports`
+   * `deploy/staging-compose.sh ps` — all services `running`/`healthy`;
+   * `deploy/staging-compose.sh exec backend python manage.py showmigrations debt notifications reports`
      — everything `[X]`;
-   * `scripts/staging-compose.sh exec backend python manage.py check` — no
+   * `deploy/staging-compose.sh exec backend python manage.py check` — no
      `notifications.W001`;
-   * `scripts/staging-compose.sh logs celery-beat` — `Sending due task whatsapp-dispatch-due`
+   * `deploy/staging-compose.sh logs celery-beat` — `Sending due task whatsapp-dispatch-due`
      every minute, no `PermissionError`;
-   * `scripts/staging-compose.sh logs celery` — `dispatch_due_messages ... succeeded`;
+   * `deploy/staging-compose.sh logs celery` — `dispatch_due_messages ... succeeded`;
    * the app works as before; the customer card says WhatsApp is not connected.
 
 **B. Meta**
@@ -343,7 +343,7 @@ On a host that also runs production, every staging command goes through
    `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_API_VERSION` (a
    version Meta currently supports) in `.env.staging`;
    `WHATSAPP_TEMPLATE_QUICK_REPLY=False` only if the approved templates have
-   no button. `scripts/staging-compose.sh up -d --force-recreate backend celery celery-beat`
+   no button. `deploy/staging-compose.sh up -d --force-recreate backend celery celery-beat`
    so every process that reads the env file picks the values up.
 8. Register the webhook `https://<staging-domain>/api/whatsapp/webhook/` with
    the verify token; Meta's verification must succeed; subscribe to
@@ -354,7 +354,7 @@ On a host that also runs production, every staging command goes through
 for a few days before enabling more shops.
 
 **Rollback:** empty `WHATSAPP_ACCESS_TOKEN` and recreate backend, celery and
-celery-beat (staging: `scripts/staging-compose.sh up -d --force-recreate backend celery celery-beat`;
+celery-beat (staging: `deploy/staging-compose.sh up -d --force-recreate backend celery celery-beat`;
 production: the same with plain `docker compose` and `.env`):
 nothing is queued or sent any more; queued rows fail with `not_configured`
 if a worker reaches them. Owners can also switch their shop off. Reverting
@@ -395,7 +395,7 @@ Each step lists what must be seen. Do all of them before production.
     process handles the reply (it lives in Redis).
 11. Change the customer's phone number. *Expect:* consent switches off
     ("Telefon raqami o'zgargan"); a new debt sends nothing to either number.
-12. `whatsapp_stats` and `scripts/staging-compose.sh logs`: no full phone number, token
+12. `whatsapp_stats` and `deploy/staging-compose.sh logs`: no full phone number, token
     or message text may appear; `unknown_total` is 0 (if not, §8a).
 
 ## 11. Recording a portfolio demo
