@@ -8,7 +8,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.catalog.models import Batch, Product
-from apps.debt.models import Customer
+from apps.debt.models import Customer, DebtEntry
 from apps.sales.models import Sale
 from apps.shops.models import Shop, ShopSettings, User
 
@@ -157,6 +157,26 @@ class CheckoutRobustnessTests(SaleApiTestCase):
         self.assertEqual(retry.status_code, 201)
         self.assertEqual(retry.json()["data"]["id"], first.json()["data"]["id"])
         self.assertEqual(Sale.objects.count(), 1)
+
+    def test_a_retried_debt_sale_is_written_to_the_debt_book_once(self):
+        customer = Customer.objects.create(shop=self.shop, full_name="Aziz Karimov")
+        payload = {
+            "client_id": str(uuid4()),
+            "payment_type": "debt",
+            "customer_id": str(customer.id),
+            "items": [{"product_id": str(self.piece.id), "qty": "2"}],
+        }
+
+        first = self.api.post("/api/sales/", payload, format="json")
+        retry = self.api.post("/api/sales/", payload, format="json")
+
+        self.assertEqual((first.status_code, retry.status_code), (201, 201))
+        self.assertEqual(retry.json()["data"]["id"], first.json()["data"]["id"])
+        self.assertEqual(Sale.objects.count(), 1)
+        self.assertEqual(DebtEntry.objects.filter(customer=customer).count(), 1)
+        customer.refresh_from_db()
+        self.assertEqual(customer.debt_balance, 3000)
+        self.assertEqual(Batch.objects.get(product=self.piece).qty_remaining, Decimal("8"))
 
     def test_the_same_product_on_two_lines_is_checked_as_one_quantity(self):
         payload = {
