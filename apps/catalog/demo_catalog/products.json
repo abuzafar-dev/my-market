@@ -1,0 +1,1002 @@
+[
+ {
+  "name": "Pepsi 1 L",
+  "barcode": "4780022620153",
+  "category": "Ichimliklar",
+  "unit": "piece",
+  "price": 7000,
+  "image": "4780022620153.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780022620153",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Pepsi 0.45 L",
+  "barcode": "4780022621303",
+  "category": "Ichimliklar",
+  "unit": "piece",
+  "price": 4500,
+  "image": "4780022621303.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780022621303",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Pepsi Zero Sugar",
+  "barcode": "4780022622119",
+  "category": "Ichimliklar",
+  "unit": "piece",
+  "price": 5000,
+  "image": "4780022622119.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780022622119",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Coca-Cola Classic 1.5 L",
+  "barcode": "4780069000154",
+  "category": "Ichimliklar",
+  "unit": "piece",
+  "price": 10000,
+  "image": "4780069000154.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780069000154",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Coca-Cola 0.5 L",
+  "barcode": "4780069000680",
+  "category": "Ichimliklar",
+  "unit": "piece",
+  "price": 5000,
+  "image": "4780069000680.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780069000680",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Coca-Cola Zero",
+  "barcode": "4780069000697",
+  "category": "Ichimliklar",
+  "unit": "piece",
+  "price": 3500,
+  "image": "4780069000697.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780069000697",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Fanta 1.5 L",
+  "barcode": "4780069000192",
+  "category": "Ichimliklar",
+  "unit": "piece",
+  "price": 9500,
+  "image": "4780069000192.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780069000192",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Sprite 1 L",
+  "barcode": "4780069000222",
+  "category": "Ichimliklar",
+  "unit": "piece",
+  "price": 7000,
+  "image": "4780069000222.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780069000222",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Mountain Dew 0.5 L",
+  "barcode": "4780022621624",
+  "category": "Ichimliklar",
+  "unit": "piece",
+  "price": 4500,
+  "image": "4780022621624.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780022621624",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Sting 0.3 L",
+  "barcode": "4780022622355",
+  "category": "Ichimliklar",
+  "unit": "piece",
+  "price": 5000,
+  "image": "4780022622355.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780022622355",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Lipton Limon 1 L",
+  "barcode": "4780022620504",
+  "category": "Ichimliklar",
+  "unit": "piece",
+  "price": 8000,
+  "image": "4780022620504.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780022620504",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Lipton Malina 1 L",
+  "barcode": "4780022620566",
+  "category": "Ichimliklar",
+  "unit": "piece",
+  "price": 8000,
+  "image": "4780022620566.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780022620566",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Lipton Mango 1 L",
+  "barcode": "4780022622324",
+  "category": "Ichimliklar",
+  "unit": "piece",
+  "price": 8000,
+  "image": "4780022622324.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780022622324",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Fuse Tea Romashka 1.5 L",
+  "barcode": "4780069001144",
+  "category": "Ichimliklar",
+  "unit": "piece",
+  "price": 9000,
+  "image": "4780069001144.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780069001144",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "BonAqua gazsiz 1.5 L",
+  "barcode": "4780069000093",
+  "category": "Ichimliklar",
+  "unit": "piece",
+  "price": 3500,
+  "image": "4780069000093.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780069000093",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "BonAqua gazli 1 L",
+  "barcode": "4780069001120",
+  "category": "Ichimliklar",
+  "unit": "piece",
+  "price": 3000,
+  "image": "4780069001120.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780069001120",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Hydrolife mineral suv 1 L",
+  "barcode": "4780012960177",
+  "category": "Ichimliklar",
+  "unit": "piece",
+  "price": 3000,
+  "image": "4780012960177.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780012960177",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Nestle Santal suvi 0.5 L",
+  "barcode": "4780042470509",
+  "category": "Ichimliklar",
+  "unit": "piece",
+  "price": 1500,
+  "image": "4780042470509.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780042470509",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Tropik kivi sharbati 1 L",
+  "barcode": "4780101734016",
+  "category": "Ichimliklar",
+  "unit": "piece",
+  "price": 9000,
+  "image": "4780101734016.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780101734016",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Tropik multifrukt 1 L",
+  "barcode": "4780101733965",
+  "category": "Ichimliklar",
+  "unit": "piece",
+  "price": 9000,
+  "image": "4780101733965.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780101733965",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Dinay anor sharbati 0.5 L",
+  "barcode": "4780019900428",
+  "category": "Ichimliklar",
+  "unit": "piece",
+  "price": 6000,
+  "image": "4780019900428.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780019900428",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Flavis mojito 0.5 L",
+  "barcode": "4780044572461",
+  "category": "Ichimliklar",
+  "unit": "piece",
+  "price": 4000,
+  "image": "4780044572461.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780044572461",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Nescafe Classic 95 g",
+  "barcode": "4600680010632",
+  "category": "Ichimliklar",
+  "unit": "piece",
+  "price": 45000,
+  "image": "4600680010632.jpg",
+  "source": "https://world.openfoodfacts.org/product/4600680010632",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Musaffo sut 2% 1 L",
+  "barcode": "4780047221700",
+  "category": "Sut mahsulotlari",
+  "unit": "piece",
+  "price": 11000,
+  "image": "4780047221700.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780047221700",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Musaffo sut 4% 1 L",
+  "barcode": "4780047221724",
+  "category": "Sut mahsulotlari",
+  "unit": "piece",
+  "price": 12500,
+  "image": "4780047221724.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780047221724",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Lactel sut 2% 1 L",
+  "barcode": "4780042470011",
+  "category": "Sut mahsulotlari",
+  "unit": "piece",
+  "price": 13000,
+  "image": "4780042470011.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780042470011",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Tog' suti 3.2% 1 L",
+  "barcode": "4780113610070",
+  "category": "Sut mahsulotlari",
+  "unit": "piece",
+  "price": 12000,
+  "image": "4780113610070.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780113610070",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Nesquik shokoladli sut 1 L",
+  "barcode": "4780042470097",
+  "category": "Sut mahsulotlari",
+  "unit": "piece",
+  "price": 16000,
+  "image": "4780042470097.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780042470097",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Dobroe grek yogurti 125 g",
+  "barcode": "4780104701473",
+  "category": "Sut mahsulotlari",
+  "unit": "piece",
+  "price": 7000,
+  "image": "4780104701473.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780104701473",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Puremilky tvorog 200 g",
+  "barcode": "4780080130892",
+  "category": "Sut mahsulotlari",
+  "unit": "piece",
+  "price": 12000,
+  "image": "4780080130892.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780080130892",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Bio kefir 2.5%",
+  "barcode": "4780080131646",
+  "category": "Sut mahsulotlari",
+  "unit": "piece",
+  "price": 9000,
+  "image": "4780080131646.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780080131646",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Ayron 400 ml",
+  "barcode": "4780022250718",
+  "category": "Sut mahsulotlari",
+  "unit": "piece",
+  "price": 5000,
+  "image": "4780022250718.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780022250718",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "President smetana",
+  "barcode": "4870207315179",
+  "category": "Sut mahsulotlari",
+  "unit": "piece",
+  "price": 14000,
+  "image": "4870207315179.jpg",
+  "source": "https://world.openfoodfacts.org/product/4870207315179",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Laskovoe leto shokoladli pishloq 80 g",
+  "barcode": "4810268058370",
+  "category": "Sut mahsulotlari",
+  "unit": "piece",
+  "price": 6000,
+  "image": "4810268058370.jpg",
+  "source": "https://world.openfoodfacts.org/product/4810268058370",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Nishon Zernistaya kolbasa 350 g",
+  "barcode": "4780035834158",
+  "category": "Go'sht mahsulotlari",
+  "unit": "piece",
+  "price": 32000,
+  "image": "4780035834158.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780035834158",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Nishon \"Kun va tun\" 328 g",
+  "barcode": "4780035833632",
+  "category": "Go'sht mahsulotlari",
+  "unit": "piece",
+  "price": 30000,
+  "image": "4780035833632.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780035833632",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Nishon Zarafshon 440 g",
+  "barcode": "4780035830013",
+  "category": "Go'sht mahsulotlari",
+  "unit": "piece",
+  "price": 38000,
+  "image": "4780035830013.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780035830013",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Asl Baraka Moskovskaya 500 g",
+  "barcode": "4780080860515",
+  "category": "Go'sht mahsulotlari",
+  "unit": "piece",
+  "price": 45000,
+  "image": "4780080860515.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780080860515",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Asl Doktorskiy 450 g",
+  "barcode": "4780080860638",
+  "category": "Go'sht mahsulotlari",
+  "unit": "piece",
+  "price": 36000,
+  "image": "4780080860638.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780080860638",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Samo Doktorskaya 700 g",
+  "barcode": "4780080861758",
+  "category": "Go'sht mahsulotlari",
+  "unit": "piece",
+  "price": 48000,
+  "image": "4780080861758.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780080861758",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Tim Doktorskaya 700 g",
+  "barcode": "4780016110165",
+  "category": "Go'sht mahsulotlari",
+  "unit": "piece",
+  "price": 46000,
+  "image": "4780016110165.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780016110165",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Andalus zaytunli kolbasa 700 g",
+  "barcode": "4780016111667",
+  "category": "Go'sht mahsulotlari",
+  "unit": "piece",
+  "price": 50000,
+  "image": "4780016111667.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780016111667",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Azizon Salyami",
+  "barcode": "4780049170426",
+  "category": "Go'sht mahsulotlari",
+  "unit": "piece",
+  "price": 42000,
+  "image": "4780049170426.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780049170426",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Raduga sosiska",
+  "barcode": "4780016110363",
+  "category": "Go'sht mahsulotlari",
+  "unit": "piece",
+  "price": 28000,
+  "image": "4780016110363.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780016110363",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Jo'ja son 980 g",
+  "barcode": "4780099690585",
+  "category": "Go'sht mahsulotlari",
+  "unit": "piece",
+  "price": 42000,
+  "image": "4780099690585.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780099690585",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Musa chuchvara 500 g",
+  "barcode": "4780032520016",
+  "category": "Go'sht mahsulotlari",
+  "unit": "piece",
+  "price": 22000,
+  "image": "4780032520016.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780032520016",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Turon un 2 kg",
+  "barcode": "4780044890121",
+  "category": "Oziq-ovqat",
+  "unit": "piece",
+  "price": 14000,
+  "image": "4780044890121.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780044890121",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Oltin don un 1 kg",
+  "barcode": "4780029390110",
+  "category": "Oziq-ovqat",
+  "unit": "piece",
+  "price": 7500,
+  "image": "4780029390110.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780029390110",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Uz Rice guruch Lazer 950 g",
+  "barcode": "4780059850103",
+  "category": "Oziq-ovqat",
+  "unit": "piece",
+  "price": 18000,
+  "image": "4780059850103.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780059850103",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Passim grechka 800 g",
+  "barcode": "4605093000867",
+  "category": "Oziq-ovqat",
+  "unit": "piece",
+  "price": 19000,
+  "image": "4605093000867.jpg",
+  "source": "https://world.openfoodfacts.org/product/4605093000867",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Makfa manna yormasi 700 g",
+  "barcode": "4601780006211",
+  "category": "Oziq-ovqat",
+  "unit": "piece",
+  "price": 11000,
+  "image": "4601780006211.jpg",
+  "source": "https://world.openfoodfacts.org/product/4601780006211",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Makfa makaron (spiral) 400 g",
+  "barcode": "4601780006990",
+  "category": "Oziq-ovqat",
+  "unit": "piece",
+  "price": 9000,
+  "image": "4601780006990.jpg",
+  "source": "https://world.openfoodfacts.org/product/4601780006990",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Makfa spagetti №13 400 g",
+  "barcode": "4601780026868",
+  "category": "Oziq-ovqat",
+  "unit": "piece",
+  "price": 9500,
+  "image": "4601780026868.jpg",
+  "source": "https://world.openfoodfacts.org/product/4601780026868",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Rollton vermishel 400 g",
+  "barcode": "0720281270144",
+  "category": "Oziq-ovqat",
+  "unit": "piece",
+  "price": 7000,
+  "image": "0720281270144.jpg",
+  "source": "https://world.openfoodfacts.org/product/0720281270144",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Osh tuzi yirik 1 kg",
+  "barcode": "4780013721265",
+  "category": "Oziq-ovqat",
+  "unit": "piece",
+  "price": 3000,
+  "image": "4780013721265.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780013721265",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "\"Tsar\" o'simlik yog'i 1 L",
+  "barcode": "4607022092950",
+  "category": "Oziq-ovqat",
+  "unit": "piece",
+  "price": 22000,
+  "image": "4607022092950.jpg",
+  "source": "https://world.openfoodfacts.org/product/4607022092950",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Ideal tomat pastasi 430 g",
+  "barcode": "4780057560011",
+  "category": "Oziq-ovqat",
+  "unit": "piece",
+  "price": 12000,
+  "image": "4780057560011.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780057560011",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Ketchup",
+  "barcode": "4607041136284",
+  "category": "Oziq-ovqat",
+  "unit": "piece",
+  "price": 10000,
+  "image": "4607041136284.jpg",
+  "source": "https://world.openfoodfacts.org/product/4607041136284",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Marinelle tuzlangan pomidor 720 ml",
+  "barcode": "4780030690049",
+  "category": "Oziq-ovqat",
+  "unit": "piece",
+  "price": 18000,
+  "image": "4780030690049.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780030690049",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Heinz qizil loviya 400 g",
+  "barcode": "5900783007454",
+  "category": "Oziq-ovqat",
+  "unit": "piece",
+  "price": 17000,
+  "image": "5900783007454.jpg",
+  "source": "https://world.openfoodfacts.org/product/5900783007454",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Kilka pomidor sousida 240 g",
+  "barcode": "4607175487504",
+  "category": "Oziq-ovqat",
+  "unit": "piece",
+  "price": 12000,
+  "image": "4607175487504.jpg",
+  "source": "https://world.openfoodfacts.org/product/4607175487504",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Tuxum 10 dona",
+  "barcode": "4780140170066",
+  "category": "Oziq-ovqat",
+  "unit": "piece",
+  "price": 15000,
+  "image": "4780140170066.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780140170066",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Baget non",
+  "barcode": "4780094937326",
+  "category": "Non mahsulotlari",
+  "unit": "piece",
+  "price": 5000,
+  "image": "4780094937326.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780094937326",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Lavash",
+  "barcode": "4780031520260",
+  "category": "Non mahsulotlari",
+  "unit": "piece",
+  "price": 4000,
+  "image": "4780031520260.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780031520260",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Abdulbori kesilgan non",
+  "barcode": "4780039970043",
+  "category": "Non mahsulotlari",
+  "unit": "piece",
+  "price": 5000,
+  "image": "4780039970043.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780039970043",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Suxarik \"Toshkent\"",
+  "barcode": "4780078150123",
+  "category": "Non mahsulotlari",
+  "unit": "piece",
+  "price": 3000,
+  "image": "4780078150123.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780078150123",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Cheers chipslari",
+  "barcode": "4780047861807",
+  "category": "Shirinliklar",
+  "unit": "piece",
+  "price": 6000,
+  "image": "4780047861807.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780047861807",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Cheers pishloqli 70 g",
+  "barcode": "4780047860831",
+  "category": "Shirinliklar",
+  "unit": "piece",
+  "price": 6000,
+  "image": "4780047860831.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780047860831",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Lay's smetana va ko'katlar",
+  "barcode": "0620310116125",
+  "category": "Shirinliklar",
+  "unit": "piece",
+  "price": 12000,
+  "image": "0620310116125.jpg",
+  "source": "https://world.openfoodfacts.org/product/0620310116125",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Cheetos smetana va piyoz",
+  "barcode": "4780073120534",
+  "category": "Shirinliklar",
+  "unit": "piece",
+  "price": 7000,
+  "image": "4780073120534.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780073120534",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Oreo pechenyesi 95 g",
+  "barcode": "7622210309358",
+  "category": "Shirinliklar",
+  "unit": "piece",
+  "price": 9000,
+  "image": "7622210309358.jpg",
+  "source": "https://world.openfoodfacts.org/product/7622210309358",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Barni shokoladli 5×30 g",
+  "barcode": "7622210632050",
+  "category": "Shirinliklar",
+  "unit": "piece",
+  "price": 22000,
+  "image": "7622210632050.jpg",
+  "source": "https://world.openfoodfacts.org/product/7622210632050",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Ole marshmallowli pechenye",
+  "barcode": "4780030392127",
+  "category": "Shirinliklar",
+  "unit": "piece",
+  "price": 12000,
+  "image": "4780030392127.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780030392127",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Yashkino Amerikanskoe pechenye",
+  "barcode": "4680021880490",
+  "category": "Shirinliklar",
+  "unit": "piece",
+  "price": 14000,
+  "image": "4680021880490.jpg",
+  "source": "https://world.openfoodfacts.org/product/4680021880490",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Alpen Gold qulupnay-yogurt 80 g",
+  "barcode": "7622202035463",
+  "category": "Shirinliklar",
+  "unit": "piece",
+  "price": 11000,
+  "image": "7622202035463.jpg",
+  "source": "https://world.openfoodfacts.org/product/7622202035463",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Pobeda achchiq shokolad 100 g",
+  "barcode": "4660013945697",
+  "category": "Shirinliklar",
+  "unit": "piece",
+  "price": 20000,
+  "image": "4660013945697.jpg",
+  "source": "https://world.openfoodfacts.org/product/4660013945697",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Ferrero Rocher",
+  "barcode": "8000500365007",
+  "category": "Shirinliklar",
+  "unit": "piece",
+  "price": 75000,
+  "image": "8000500365007.jpg",
+  "source": "https://world.openfoodfacts.org/product/8000500365007",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Albeni",
+  "barcode": "4870112008012",
+  "category": "Shirinliklar",
+  "unit": "piece",
+  "price": 5000,
+  "image": "4870112008012.jpg",
+  "source": "https://world.openfoodfacts.org/product/4870112008012",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Fruit-tella",
+  "barcode": "4602606003711",
+  "category": "Shirinliklar",
+  "unit": "piece",
+  "price": 6000,
+  "image": "4602606003711.jpg",
+  "source": "https://world.openfoodfacts.org/product/4602606003711",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Chococream 400 g",
+  "barcode": "4780033020065",
+  "category": "Shirinliklar",
+  "unit": "piece",
+  "price": 28000,
+  "image": "4780033020065.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780033020065",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Persil kir yuvish kukuni 3 kg",
+  "barcode": "9000101584219",
+  "category": "Maishiy kimyo",
+  "unit": "piece",
+  "price": 95000,
+  "image": "9000101584219.jpg",
+  "source": "https://world.openfoodfacts.org/product/9000101584219",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Aprel kir yuvish kukuni 1.8 kg",
+  "barcode": "4780034220174",
+  "category": "Maishiy kimyo",
+  "unit": "piece",
+  "price": 35000,
+  "image": "4780034220174.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780034220174",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Domestos 750 ml",
+  "barcode": "8683130029039",
+  "category": "Maishiy kimyo",
+  "unit": "piece",
+  "price": 28000,
+  "image": "8683130029039.jpg",
+  "source": "https://world.openfoodfacts.org/product/8683130029039",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Vanish Oxi 500 ml",
+  "barcode": "8682539004913",
+  "category": "Maishiy kimyo",
+  "unit": "piece",
+  "price": 35000,
+  "image": "8682539004913.jpg",
+  "source": "https://world.openfoodfacts.org/product/8682539004913",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Cif limon 500 ml",
+  "barcode": "8683130029459",
+  "category": "Maishiy kimyo",
+  "unit": "piece",
+  "price": 27000,
+  "image": "8683130029459.jpg",
+  "source": "https://world.openfoodfacts.org/product/8683130029459",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Grass WC-gel 750 ml",
+  "barcode": "4780140570071",
+  "category": "Maishiy kimyo",
+  "unit": "piece",
+  "price": 18000,
+  "image": "4780140570071.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780140570071",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Grass Clean Glass oyna tozalagich 600 ml",
+  "barcode": "4780140570057",
+  "category": "Maishiy kimyo",
+  "unit": "piece",
+  "price": 15000,
+  "image": "4780140570057.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780140570057",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Pegas idish yuvish 1 L",
+  "barcode": "4780041180348",
+  "category": "Maishiy kimyo",
+  "unit": "piece",
+  "price": 14000,
+  "image": "4780041180348.jpg",
+  "source": "https://world.openfoodfacts.org/product/4780041180348",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Syoss shampuni 440 ml",
+  "barcode": "4015100804867",
+  "category": "Gigiena",
+  "unit": "piece",
+  "price": 55000,
+  "image": "4015100804867.jpg",
+  "source": "https://world.openfoodfacts.org/product/4015100804867",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Schauma 7 o'tlar 400 ml",
+  "barcode": "4015100803600",
+  "category": "Gigiena",
+  "unit": "piece",
+  "price": 38000,
+  "image": "4015100803600.jpg",
+  "source": "https://world.openfoodfacts.org/product/4015100803600",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Dove dush geli 250 ml",
+  "barcode": "8712561803472",
+  "category": "Gigiena",
+  "unit": "piece",
+  "price": 40000,
+  "image": "8712561803472.jpg",
+  "source": "https://world.openfoodfacts.org/product/8712561803472",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "\"Chistaya liniya\" shampuni 400 ml",
+  "barcode": "4600702081480",
+  "category": "Gigiena",
+  "unit": "piece",
+  "price": 30000,
+  "image": "4600702081480.jpg",
+  "source": "https://world.openfoodfacts.org/product/4600702081480",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Milana suyuq krem-sovun 500 ml",
+  "barcode": "4650433760840",
+  "category": "Gigiena",
+  "unit": "piece",
+  "price": 16000,
+  "image": "4650433760840.jpg",
+  "source": "https://world.openfoodfacts.org/product/4650433760840",
+  "license": "CC BY-SA 3.0 (Open Food Facts)"
+ },
+ {
+  "name": "Banan",
+  "barcode": null,
+  "category": "Meva-sabzavot",
+  "unit": "kg",
+  "price": 28000,
+  "image": "banan.jpg",
+  "source": "https://commons.wikimedia.org/wiki/File:Bananas_(white_background).jpg",
+  "license": "CC BY 2.0 (Wikimedia Commons), author: Justus Blümer"
+ },
+ {
+  "name": "Olma (qizil)",
+  "barcode": null,
+  "category": "Meva-sabzavot",
+  "unit": "kg",
+  "price": 18000,
+  "image": "olma.jpg",
+  "source": "https://commons.wikimedia.org/wiki/File:Red_apple_on_white_background.jpg",
+  "license": "CC0 (Wikimedia Commons), author: Sprinno"
+ },
+ {
+  "name": "Kartoshka",
+  "barcode": null,
+  "category": "Meva-sabzavot",
+  "unit": "kg",
+  "price": 6000,
+  "image": "kartoshka.jpg",
+  "source": "https://commons.wikimedia.org/wiki/File:Potatoes_2.jpg",
+  "license": "CC BY-SA 3.0 (Wikimedia Commons), author: Tiia Monto"
+ },
+ {
+  "name": "Piyoz",
+  "barcode": null,
+  "category": "Meva-sabzavot",
+  "unit": "kg",
+  "price": 5000,
+  "image": "piyoz.jpg",
+  "source": "https://commons.wikimedia.org/wiki/File:Onion_on_White.JPG",
+  "license": "CC BY-SA 3.0 (Wikimedia Commons), author: Colin"
+ },
+ {
+  "name": "Pomidor",
+  "barcode": null,
+  "category": "Meva-sabzavot",
+  "unit": "kg",
+  "price": 15000,
+  "image": "pomidor.jpg",
+  "source": "https://commons.wikimedia.org/wiki/File:Tomato_je.jpg",
+  "license": "CC BY-SA 3.0 (Wikimedia Commons), author: Softeis"
+ },
+ {
+  "name": "Bodring",
+  "barcode": null,
+  "category": "Meva-sabzavot",
+  "unit": "kg",
+  "price": 12000,
+  "image": "bodring.jpg",
+  "source": "https://commons.wikimedia.org/wiki/File:Cucumber_from_Denmark.jpg",
+  "license": "CC0 (Wikimedia Commons), author: WiseMan42"
+ },
+ {
+  "name": "Sabzi",
+  "barcode": null,
+  "category": "Meva-sabzavot",
+  "unit": "kg",
+  "price": 5000,
+  "image": "sabzi.jpg",
+  "source": "https://commons.wikimedia.org/wiki/File:Vegetable-Carrot-Bundle-wStalks.jpg",
+  "license": "Public domain (Wikimedia Commons), author: Evan-Amos"
+ }
+]

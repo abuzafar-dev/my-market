@@ -438,8 +438,10 @@ Kompyuteringizda Docker o'rnatilgan bo'lsa:
 U `.env`ni o'zi yaratadi, hamma narsani quradi va ishga tushiradi. Tayyor
 bo'lgach: **http://localhost:8080**
 
-- Demo kirish: telefon `+998900000001`, parol `demo12345`
-- Demo do'konda **10 ta mahsulot** tayyor turadi.
+- Demo kirish: egasi `+998900000001`, sotuvchi `+998900000002`, parol ikkalasida `demo12345`
+- Demo do'konda **100 ta haqiqiy rasmli mahsulot**, 6 ta mijoz va **30 kunlik
+  sotuv tarixi** tayyor turadi: hisobot, eng ko'p sotilganlar, kam qolgan va
+  muddati yaqin mahsulotlar, qarz daftari to'la ko'rinadi.
 
 To'xtatish: `Ctrl+C`, keyin `docker compose down`.
 
