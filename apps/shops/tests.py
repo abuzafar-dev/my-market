@@ -179,19 +179,49 @@ class ProvisioningCommandTests(TestCase):
         owner = User.objects.get(phone="+998772874307")
         self.assertEqual((seller.role, seller.shop_id), (User.Role.SELLER, owner.shop_id))
 
-    def test_seed_demo_makes_ten_sellable_products_once(self):
+    def test_seed_demo_makes_a_used_looking_shop_once(self):
+        from datetime import timedelta
+
         from django.core.management import call_command
+        from django.utils import timezone
 
         from apps.catalog.models import Product
+        from apps.debt.models import Customer
+        from apps.reports.services import debt_summary
+        from apps.sales.models import Sale
 
         for _ in range(2):  # idempotent
             call_command("seed_demo", stdout=StringIO())
 
-        shop = User.objects.get(phone="+998900000001").shop
-        products = Product.objects.filter(shop=shop)
-        self.assertEqual(products.count(), 10)
+        owner = User.objects.get(phone="+998900000001")
+        shop = owner.shop
         self.assertEqual(Shop.objects.count(), 1)
-        self.assertTrue(all(p.batches.filter(qty_remaining__gt=0).exists() for p in products))
+        self.assertEqual(User.objects.get(phone="+998900000002").shop_id, shop.id)  # the seller
+
+        products = Product.objects.filter(shop=shop)
+        self.assertEqual(products.count(), 100)
+        self.assertFalse(products.filter(image="").exists())  # every one has a photo
+        self.assertEqual(products.filter(unit=Product.Unit.KG).count(), 7)
+
+        sales = Sale.objects.filter(shop=shop)
+        today = timezone.localdate()
+        self.assertGreater(sales.count(), 300)
+        # History spread over the past month, not stamped "now".
+        self.assertTrue(sales.filter(sold_at__date__lte=today - timedelta(days=25)).exists())
+        self.assertEqual(
+            set(sales.values_list("payment_type", flat=True)),
+            {Sale.PaymentType.CASH, Sale.PaymentType.CARD, Sale.PaymentType.DEBT},
+        )
+        # Debt book: stored balances match the ledger, and something is owed.
+        for customer in Customer.objects.filter(shop=shop):
+            ledger = sum(customer.entries.values_list("amount", flat=True))
+            self.assertEqual(customer.debt_balance, ledger)
+        summary = debt_summary(shop, today - timedelta(days=30), today)
+        self.assertGreater(summary["sold"], 0)
+        self.assertGreater(summary["paid"], 0)
+        self.assertGreater(summary["outstanding"], 0)
+        # Stock never went negative.
+        self.assertFalse(products.filter(batches__qty_remaining__lt=0).exists())
 
 
 class EnsureAdminTests(TestCase):

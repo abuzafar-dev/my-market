@@ -240,11 +240,15 @@ Generates `.env` (random `SECRET_KEY` / `POSTGRES_PASSWORD`) if it
 doesn't exist yet, then runs `docker compose up --build`. The site is at
 <http://localhost:8080> (nginx: the SPA, and a reverse proxy for `/api`,
 `/admin`, `/static`, `/media` — so the app is same-origin). The backend
-seeds a demo shop with 10 products because `run.sh` sets `SEED_DEMO=True`:
+seeds a demo shop because `run.sh` sets `SEED_DEMO=True`: 100 real products
+with real photos (sources and licences in
+`apps/catalog/demo_catalog/ATTRIBUTION.md`), six customers and 30 days of
+sales, so the reports, top sellers, stock warnings and debt book are filled in:
 
-| Phone | Password |
-|---|---|
-| `+998900000001` | `demo12345` |
+| Role | Phone | Password |
+|---|---|---|
+| Owner | `+998900000001` | `demo12345` |
+| Seller | `+998900000002` | `demo12345` |
 
 A **real server** does not use `run.sh`: it uses
 `deploy/env.production.example`, keeps `SEED_DEMO=False`, creates its shop

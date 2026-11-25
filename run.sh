@@ -29,7 +29,7 @@ if [ ! -f .env ]; then
   fi
 
   # Demo launcher: create the demo shop (phone +998900000001, password
-  # demo12345) with 10 products so there is something to log into.
+  # demo12345) with 100 real products and a month of sales to look at.
   echo "SEED_DEMO=True" >> .env
 fi
 
