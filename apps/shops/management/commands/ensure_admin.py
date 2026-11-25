@@ -9,7 +9,7 @@ The account is only ever *created*: if a user with that phone already exists
 it is left exactly as it is (password, role, access). To change its password
 use ``manage.py changepassword <phone>``.
 
-docker-entrypoint.sh runs this with ``--if-configured`` on every start, so a
+deploy/docker-entrypoint.sh runs this with ``--if-configured`` on every start, so a
 server that sets neither variable simply gets no operator account.
 """
 

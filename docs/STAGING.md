@@ -14,7 +14,7 @@ staging server, in the project directory, as the deploy user.
 * never `cat .env` / `cat .env.staging`, never `config` without `--quiet`
   (it prints every value) unless piped into `staging-isolation-check.py`,
   never `env`/`printenv` in a container;
-* every staging command goes through `scripts/staging-compose.sh` (§0a) —
+* every staging command goes through `deploy/staging-compose.sh` (§0a) —
   plain `docker compose` in this directory means **production**;
 * presence checks print only `set` / `EMPTY`;
 * the webhook checks below compute signatures and send the verify token
@@ -32,7 +32,7 @@ What was verified while writing this (2026-10-13), and what was not:
 | `celery beat` with the default schedule file crashes (`PermissionError`); with `--schedule /tmp/celerybeat-schedule` it starts | same image |
 | Worker registers the notifications tasks; `manage.py check` clean (prod settings, WhatsApp off) | same image |
 | With `.env.staging`, every name differs from production (project, containers, volumes, default network, built images, host port, proxy alias), and the app containers load the staging env file; production's resolved config is byte-identical before/after the change | `docker compose config` with fake prod/staging env files (§0a) |
-| `scripts/staging-compose.sh` refuses: missing/unfilled env file, `.env`, wrong project name, missing `APP_ENV_FILE`, port 8080, shared proxy without a distinct alias, empty `SECRET_KEY`/`POSTGRES_PASSWORD` | fake env files |
+| `deploy/staging-compose.sh` refuses: missing/unfilled env file, `.env`, wrong project name, missing `APP_ENV_FILE`, port 8080, shared proxy without a distinct alias, empty `SECRET_KEY`/`POSTGRES_PASSWORD` | fake env files |
 | `.env.staging` is ignored by Git and excluded from the Docker build context | `git check-ignore`, a throwaway build |
 
 **Not verified:** `docker compose up` of the whole stack (it would run
@@ -104,7 +104,7 @@ production's volumes. Reproduced with `docker compose config`: a staging
 directory whose env file lacks `COMPOSE_PROJECT_NAME` resolves to project
 `my-market`.
 
-So staging is driven only through **`scripts/staging-compose.sh`**, which
+So staging is driven only through **`deploy/staging-compose.sh`**, which
 always runs `docker compose -p my-market-staging --env-file .env.staging …` and
 first refuses an env file that would collide (see the checks in the script).
 
@@ -152,8 +152,8 @@ keeps `reverse_proxy my-market:80`.
 | # | Command | Purpose | Expected |
 |---|---|---|---|
 | I1 | `docker compose ls` | Projects already on the host | Production as `my-market` (if present); no `my-market-staging` yet |
-| I2 | `scripts/staging-compose.sh config --quiet && echo ok` | Wrapper's own checks + Compose validation | `ok` |
-| I3 | `scripts/staging-compose.sh config --format json \| python3 scripts/staging-isolation-check.py` | Every resolved name/port/alias vs production; prints no secret | `RESULT ISOLATED`; `ALLOWED_HOSTS` is the staging domain; token `EMPTY` |
+| I2 | `deploy/staging-compose.sh config --quiet && echo ok` | Wrapper's own checks + Compose validation | `ok` |
+| I3 | `deploy/staging-compose.sh config --format json \| python3 deploy/staging-isolation-check.py` | Every resolved name/port/alias vs production; prints no secret | `RESULT ISOLATED`; `ALLOWED_HOSTS` is the staging domain; token `EMPTY` |
 | I4 | `ss -ltn \| grep -E ':(8080\|8081)\b'` | Host ports in use | `8080` only if production runs; nothing on `8081` |
 | I5 | `docker volume ls --format '{{.Name}}' \| grep my-market` | Existing volumes | Production's `my-market_*` may exist; no `my-market-staging_*` before the first `up` |
 | I6 | `git check-ignore -q .env.staging && echo ignored` | The staging secrets cannot be committed | `ignored` (`.dockerignore` also keeps it out of images) |
@@ -169,25 +169,25 @@ Start with no WhatsApp credentials: the app must behave exactly as before.
 |---|---|---|---|
 | A1 | `cp deploy/env.staging.example .env.staging && chmod 600 .env.staging && ${EDITOR:-nano} .env.staging` | Create the staging env file (never a copy of production's `.env`) | File exists, mode `-rw-------`; isolation lines untouched, every `CHANGE-ME` replaced (§0, §0a) |
 | A2 | `grep -cE '^WHATSAPP_ACCESS_TOKEN=.+' .env.staging` | Confirm WhatsApp is still off (prints a count, not the value) | `0` |
-| A3 | `scripts/staging-compose.sh config --quiet && echo compose-ok` | Validate Compose + the staging env file without printing values; the wrapper first refuses an env file that would collide with production | `compose-ok`; or `staging-compose: …` naming what to fix |
-| A3a | `scripts/staging-compose.sh config --format json \| python3 scripts/staging-isolation-check.py` | Resolved names, ports, aliases vs production (§0a) — prints no secret | `RESULT ISOLATED`; `ALLOWED_HOSTS` = the staging domain; `WHATSAPP_ACCESS_TOKEN=EMPTY` |
-| A4 | `scripts/staging-compose.sh build` | Build backend/worker/beat and frontend images | Ends without error |
-| A5 | `scripts/staging-compose.sh up -d` | Start the stack. Order: `db`, `redis` → `backend` (runs `migrate`, then gunicorn) → `celery`, `celery-beat`, `frontend` once the backend is healthy | Command returns; no `exited` services |
-| A6 | `scripts/staging-compose.sh ps` | Service state | `db`, `redis`, `backend`: `healthy`; `celery`, `celery-beat`, `frontend`: `running` (they have no healthcheck — see A10–A12) |
-| A7 | `scripts/staging-compose.sh logs backend \| grep -E "Applying\|No migrations to apply"` | Migrations ran in the backend container | On a fresh DB: `Applying debt.0004_debtentry_due_date... OK`, `Applying notifications.0001_initial... OK` … `0003` … `reports.0001_initial... OK` |
-| A8 | `scripts/staging-compose.sh exec backend python manage.py showmigrations debt notifications reports` | Every migration applied | All `[X]`, including `debt 0004`, `notifications 0001–0003`, `reports 0001` |
-| A9 | `scripts/staging-compose.sh logs celery celery-beat \| grep -c "Applying"` | Worker and beat did **not** migrate (`RUN_STARTUP_TASKS=false`) | `0` |
-| A10 | `scripts/staging-compose.sh exec celery celery -A config inspect ping` | Worker reachable through Redis | `-> celery@<id>: OK` … `pong` |
-| A11 | `scripts/staging-compose.sh logs --since 3m celery-beat \| grep -E "Sending due task\|PermissionError"` | Beat is scheduling and can write its state file | `Sending due task whatsapp-dispatch-due` about once a minute; **no** `PermissionError` |
-| A12 | `scripts/staging-compose.sh logs --since 3m celery \| grep "dispatch_due_messages"` | Worker runs the sweeper | `… dispatch_due_messages[…] succeeded … : 0` |
+| A3 | `deploy/staging-compose.sh config --quiet && echo compose-ok` | Validate Compose + the staging env file without printing values; the wrapper first refuses an env file that would collide with production | `compose-ok`; or `staging-compose: …` naming what to fix |
+| A3a | `deploy/staging-compose.sh config --format json \| python3 deploy/staging-isolation-check.py` | Resolved names, ports, aliases vs production (§0a) — prints no secret | `RESULT ISOLATED`; `ALLOWED_HOSTS` = the staging domain; `WHATSAPP_ACCESS_TOKEN=EMPTY` |
+| A4 | `deploy/staging-compose.sh build` | Build backend/worker/beat and frontend images | Ends without error |
+| A5 | `deploy/staging-compose.sh up -d` | Start the stack. Order: `db`, `redis` → `backend` (runs `migrate`, then gunicorn) → `celery`, `celery-beat`, `frontend` once the backend is healthy | Command returns; no `exited` services |
+| A6 | `deploy/staging-compose.sh ps` | Service state | `db`, `redis`, `backend`: `healthy`; `celery`, `celery-beat`, `frontend`: `running` (they have no healthcheck — see A10–A12) |
+| A7 | `deploy/staging-compose.sh logs backend \| grep -E "Applying\|No migrations to apply"` | Migrations ran in the backend container | On a fresh DB: `Applying debt.0004_debtentry_due_date... OK`, `Applying notifications.0001_initial... OK` … `0003` … `reports.0001_initial... OK` |
+| A8 | `deploy/staging-compose.sh exec backend python manage.py showmigrations debt notifications reports` | Every migration applied | All `[X]`, including `debt 0004`, `notifications 0001–0003`, `reports 0001` |
+| A9 | `deploy/staging-compose.sh logs celery celery-beat \| grep -c "Applying"` | Worker and beat did **not** migrate (`RUN_STARTUP_TASKS=false`) | `0` |
+| A10 | `deploy/staging-compose.sh exec celery celery -A config inspect ping` | Worker reachable through Redis | `-> celery@<id>: OK` … `pong` |
+| A11 | `deploy/staging-compose.sh logs --since 3m celery-beat \| grep -E "Sending due task\|PermissionError"` | Beat is scheduling and can write its state file | `Sending due task whatsapp-dispatch-due` about once a minute; **no** `PermissionError` |
+| A12 | `deploy/staging-compose.sh logs --since 3m celery \| grep "dispatch_due_messages"` | Worker runs the sweeper | `… dispatch_due_messages[…] succeeded … : 0` |
 | A13 | `curl -fsS http://127.0.0.1:8081/healthz/` | Staging app + DB through staging's nginx, on the host (8080 is production's) | `{"status": "ok"}` |
 | A14 | `curl -fsS https://staging.shop.example.uz/healthz/` | Same through Caddy/HTTPS (valid certificate) | `{"status": "ok"}`; no certificate error |
-| A15 | `scripts/staging-compose.sh exec backend python manage.py check` | Django checks with prod settings | `System check identified no issues` (in particular no `notifications.W001`) |
-| A16 | `scripts/staging-compose.sh exec backend python manage.py shell -c "from django.core.cache import cache; cache.set('staging-check', 1, 30); print(cache.get('staging-check'))"` | Shared Redis cache works | `1` |
+| A15 | `deploy/staging-compose.sh exec backend python manage.py check` | Django checks with prod settings | `System check identified no issues` (in particular no `notifications.W001`) |
+| A16 | `deploy/staging-compose.sh exec backend python manage.py shell -c "from django.core.cache import cache; cache.set('staging-check', 1, 30); print(cache.get('staging-check'))"` | Shared Redis cache works | `1` |
 | A17 | Browser: log in, open a customer | UI regression check | Works as before; the WhatsApp card says it is not connected |
 
-**Rollback of step A:** `scripts/staging-compose.sh down` (keeps the volume);
-`scripts/staging-compose.sh down -v` deletes the staging database too (the
+**Rollback of step A:** `deploy/staging-compose.sh down` (keeps the volume);
+`deploy/staging-compose.sh down -v` deletes the staging database too (the
 wrapper pins `-p my-market-staging`, so production's volumes are out of reach) — only if staging
 data really may go.
 
@@ -197,19 +197,19 @@ data really may go.
 
 | # | Command / action | Purpose | Expected |
 |---|---|---|---|
-| B1 | `scripts/staging-compose.sh exec backend python manage.py whatsapp_templates > templates.json` | Exact template definitions to submit (prints JSON only, never calls Meta) | `templates.json` with 5 templates: `debt_added`, `debt_reminder`, `debt_overdue`, `payment_received`, `debt_closed` |
+| B1 | `deploy/staging-compose.sh exec backend python manage.py whatsapp_templates > templates.json` | Exact template definitions to submit (prints JSON only, never calls Meta) | `templates.json` with 5 templates: `debt_added`, `debt_reminder`, `debt_overdue`, `payment_received`, `debt_closed` |
 | B2 | WhatsApp Manager → Message templates → create each one exactly as in `templates.json` (Utility, language `uz`, footer, quick-reply button) | Template approval | All five **Active**. Rejected or re-categorised → change `apps/notifications/templates.py`, rebuild, resubmit |
 | B3 | `${EDITOR:-nano} .env.staging` — fill `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_API_VERSION`; `WHATSAPP_TEMPLATE_QUICK_REPLY=False` only if the templates have no button | Credentials | — |
-| B4 | `scripts/staging-compose.sh up -d --force-recreate backend celery celery-beat` | Apply the new env file to every process that reads it | Three containers recreated; A6 again shows them healthy/running |
+| B4 | `deploy/staging-compose.sh up -d --force-recreate backend celery celery-beat` | Apply the new env file to every process that reads it | Three containers recreated; A6 again shows them healthy/running |
 | B5 | see block below | Confirm each variable reached the containers, without printing it | Every name `set`; `WHATSAPP_API_VERSION` looks like `vNN.0` |
-| B6 | `scripts/staging-compose.sh exec backend python manage.py check` | Cache check with WhatsApp on | no `notifications.W001` |
+| B6 | `deploy/staging-compose.sh exec backend python manage.py check` | Cache check with WhatsApp on | no `notifications.W001` |
 
 B5 — presence check (prints only `set`/`EMPTY`), run for backend and celery:
 
 ```bash
 for svc in backend celery; do
   echo "== $svc"
-  scripts/staging-compose.sh exec -T "$svc" python -c "
+  deploy/staging-compose.sh exec -T "$svc" python -c "
 import os, re
 for k in ('WHATSAPP_ACCESS_TOKEN','WHATSAPP_PHONE_NUMBER_ID','WHATSAPP_APP_SECRET',
           'WHATSAPP_VERIFY_TOKEN','WHATSAPP_API_VERSION'):
@@ -232,7 +232,7 @@ gunicorn directly, as nginx would (`Host` = first `ALLOWED_HOSTS` entry,
 (a mismatch prints `GET status 403 …`).
 
 ```bash
-scripts/staging-compose.sh exec -T backend python - <<'EOF'
+deploy/staging-compose.sh exec -T backend python - <<'EOF'
 import os, urllib.error, urllib.parse, urllib.request
 host = os.environ["ALLOWED_HOSTS"].split(",")[0].strip()
 q = urllib.parse.urlencode({"hub.mode": "subscribe",
@@ -254,7 +254,7 @@ customer is looked up, nothing is sent). Expected: `signed POST status 200`
 (a wrong secret prints `signed POST status 403 …`).
 
 ```bash
-scripts/staging-compose.sh exec -T backend python - <<'EOF'
+deploy/staging-compose.sh exec -T backend python - <<'EOF'
 import hashlib, hmac, json, os, urllib.error, urllib.request
 host = os.environ["ALLOWED_HOSTS"].split(",")[0].strip()
 body = json.dumps({"object": "whatsapp_business_account", "entry": [{"id": "staging-check",
@@ -283,7 +283,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/j
 **C4 — register in Meta.** App → WhatsApp → Configuration → Callback URL
 `https://staging.shop.example.uz/api/whatsapp/webhook/`, Verify token = the
 value in `.env.staging` → *Verify and save* → subscribe to **messages**.
-Expected: Meta shows it verified; `scripts/staging-compose.sh logs --since 5m backend | grep webhook`
+Expected: Meta shows it verified; `deploy/staging-compose.sh logs --since 5m backend | grep webhook`
 shows `GET /api/whatsapp/webhook/… 200`. If it fails: C1 passes but Meta
 fails → domain/TLS/proxy; C1 fails → token mismatch.
 
@@ -292,10 +292,10 @@ number. Expected: a reply within seconds (help menu if your number is
 recorded in a shop with consent, otherwise "ro'yxatdan o'tmagan"), and
 
 ```bash
-scripts/staging-compose.sh exec backend python manage.py whatsapp_stats --hours 1
+deploy/staging-compose.sh exec backend python manage.py whatsapp_stats --hours 1
 ```
 
-shows `"inbound": 1` (or more). `scripts/staging-compose.sh logs --since 5m backend | grep "bad signature"`
+shows `"inbound": 1` (or more). `deploy/staging-compose.sh logs --since 5m backend | grep "bad signature"`
 must print nothing — if it does, the App Secret is wrong.
 
 ---
@@ -307,10 +307,10 @@ steps 1–12 in order, one test shop only. Useful while doing it:
 
 | Command | Purpose | Expected |
 |---|---|---|
-| `scripts/staging-compose.sh exec backend python manage.py whatsapp_stats --hours 2` | Counts by status/kind (no personal data) | After each step the expected kind appears; `unknown_total` stays `0` |
-| `scripts/staging-compose.sh logs -f --since 1m celery \| grep -E "whatsapp outbound\|succeeded"` | Watch sends | `whatsapp outbound sent kind=…` lines; numbers masked as `+99890*****67` |
-| `scripts/staging-compose.sh logs --since 30m backend celery \| grep -cE '\+998[0-9]{9}'` | No unmasked phone number in logs | `0` |
-| `scripts/staging-compose.sh logs --since 30m celery \| grep -E "outbound (failed\|unknown)"` | Failures to investigate | Empty; else see WHATSAPP.md §8 / §8a |
+| `deploy/staging-compose.sh exec backend python manage.py whatsapp_stats --hours 2` | Counts by status/kind (no personal data) | After each step the expected kind appears; `unknown_total` stays `0` |
+| `deploy/staging-compose.sh logs -f --since 1m celery \| grep -E "whatsapp outbound\|succeeded"` | Watch sends | `whatsapp outbound sent kind=…` lines; numbers masked as `+99890*****67` |
+| `deploy/staging-compose.sh logs --since 30m backend celery \| grep -cE '\+998[0-9]{9}'` | No unmasked phone number in logs | `0` |
+| `deploy/staging-compose.sh logs --since 30m celery \| grep -E "outbound (failed\|unknown)"` | Failures to investigate | Empty; else see WHATSAPP.md §8 / §8a |
 
 Step 8 (reminders) needs real dates: create the debt with a due date of
 tomorrow, then check the next 15-minute run inside sending hours today, and
@@ -327,4 +327,4 @@ the day after the due date for the overdue reminder.
   step A5 (migrations run on start): `docker compose exec backup /scripts/backup.sh`
   ([BACKUP.md](BACKUP.md)).
 * Rollback of WhatsApp only (staging): empty `WHATSAPP_ACCESS_TOKEN` in `.env.staging`, then
-  `scripts/staging-compose.sh up -d --force-recreate backend celery celery-beat`.
+  `deploy/staging-compose.sh up -d --force-recreate backend celery celery-beat`.

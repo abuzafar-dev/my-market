@@ -1,7 +1,7 @@
 """Idempotently create a demo shop + owner with fixed, known credentials and a
 small catalogue of 10 products with stock.
 
-Runs on container start only when SEED_DEMO=true (see docker-entrypoint.sh) —
+Runs on container start only when SEED_DEMO=true (see deploy/docker-entrypoint.sh) —
 a fresh demo `docker compose up --build` then has something to log into (there
 is no public sign-up) and to sell. A real server leaves SEED_DEMO off and
 creates its shop with `manage.py create_shop`.

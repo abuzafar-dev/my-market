@@ -8,7 +8,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BACKUP="$ROOT/scripts/backup.sh"
 RESTORE="$ROOT/scripts/restore.sh"
 HEALTHY="$ROOT/scripts/backup-healthy.sh"
-ISOLATION="$ROOT/scripts/staging-isolation-check.py"
+ISOLATION="$ROOT/deploy/staging-isolation-check.py"
 
 passed=0
 failed=0

@@ -67,7 +67,7 @@ SECURE_REDIRECT_EXEMPT = [r"^healthz/$", r"^healthz/celery/$"]
 # TEMPORARY test mode: plain HTTP (no TLS) — e.g. reaching the server by IP
 # before a domain / HTTPS exists. NEVER for real use: passwords and sessions
 # travel unencrypted, and the camera barcode scanner does not work (browsers only
-# allow the camera on HTTPS). Real deployments use HTTPS (see QOLLANMA.md).
+# allow the camera on HTTPS). Real deployments use HTTPS (see docs/QOLLANMA.md).
 # --------------------------------------------------------------------------
 if config("ALLOW_INSECURE_HTTP", cast=bool, default=False):
     SECURE_SSL_REDIRECT = False

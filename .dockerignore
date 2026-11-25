@@ -18,6 +18,6 @@ frontend/
 .github/
 .agents/
 .claude/
-QOLLANMA.md
+docs/QOLLANMA.md
 # backup dumps (docker-compose `backup` service) — never into an image
 backups/

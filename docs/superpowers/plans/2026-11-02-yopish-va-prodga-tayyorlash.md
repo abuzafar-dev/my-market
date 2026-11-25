@@ -252,7 +252,7 @@ class InitSentryTests(SimpleTestCase):
 - Modify: `docs/PLAN.md`, `docs/TZ.md` (§5 NFR-05/06 holati, §9), `README.md` (yangi env'lar jadvali: `SENTRY_*`, `BACKUP_KEEP_DAYS`)
 
 - [ ] **Step 1: Deploy check** — Run: `DJANGO_SETTINGS_MODULE=config.settings.prod SECRET_KEY=$(python -c 'import secrets;print(secrets.token_urlsafe(50))') DATABASE_URL=postgresql://u:p@localhost/db ALLOWED_HOSTS=example.uz .venv/bin/python manage.py check --deploy` Expected: `System check identified no issues`. Har bir ogohlantirish — tuzatiladi yoki README'da nega qabul qilingani yoziladi.
-- [ ] **Step 2: Staging'da to'liq smoke** — `scripts/staging-compose.sh` bilan ko'tarish (`docs/STAGING.md`), `/healthz/`, `/healthz/celery/`, kirish → sotuv → Excel eksport → backup fayli paydo bo'lishi.
+- [ ] **Step 2: Staging'da to'liq smoke** — `deploy/staging-compose.sh` bilan ko'tarish (`docs/STAGING.md`), `/healthz/`, `/healthz/celery/`, kirish → sotuv → Excel eksport → backup fayli paydo bo'lishi.
 - [ ] **Step 3: Hujjatlarni yangilash** — PLAN.md bandlari `[x]`, TZ §5 da NFR-05 ✅, NFR-06 ✅, §9 jadvali.
 - [ ] **Step 4: Commit + PR yangilash** — `git commit -m "docs: production readiness status"`; push foydalanuvchi tasdig'i bilan.
 
